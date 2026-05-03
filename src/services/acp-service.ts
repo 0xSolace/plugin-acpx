@@ -104,7 +104,9 @@ export class AcpService {
       this.setting("PARALLAX_DEFAULT_AGENT_TYPE") ??
       "codex";
     this.defaultApprovalPreset = normalizeApprovalPreset(
-      this.setting("ELIZA_ACP_DEFAULT_APPROVAL_PRESET") ??
+      // Public parity-spec name first; PRESET kept for backward compatibility with early drafts.
+      this.setting("ELIZA_ACP_DEFAULT_APPROVAL") ??
+        this.setting("ELIZA_ACP_DEFAULT_APPROVAL_PRESET") ??
         this.setting("PARALLAX_DEFAULT_APPROVAL_PRESET"),
     );
     this.agentSelectionStrategy =
@@ -112,7 +114,10 @@ export class AcpService {
       this.setting("PARALLAX_AGENT_SELECTION_STRATEGY") ??
       "fixed";
     this.maxSessions = parsePositiveInt(this.setting("ELIZA_ACP_MAX_SESSIONS")) ?? 8;
-    this.sessionTimeoutMs = parsePositiveInt(this.setting("ELIZA_ACP_SESSION_TIMEOUT_MS"));
+    this.sessionTimeoutMs = parsePositiveInt(
+      // Public parity-spec name first; SESSION kept for backward compatibility with early drafts.
+      this.setting("ELIZA_ACP_PROMPT_TIMEOUT_MS") ?? this.setting("ELIZA_ACP_SESSION_TIMEOUT_MS"),
+    );
   }
 
   static async start(runtime: IAgentRuntime): Promise<AcpService> {
@@ -152,7 +157,12 @@ export class AcpService {
     const agentType = opts.agentType ?? this.defaultAgent;
     const approvalPreset = opts.approvalPreset ?? this.defaultApprovalPreset;
     const workdir = resolve(
-      opts.workdir ?? this.setting("ELIZA_ACP_WORKDIR_ROOT") ?? this.setting("PARALLAX_CODING_DIRECTORY") ?? DEFAULT_WORKDIR_ROOT,
+      opts.workdir ??
+        // Public parity-spec name first; WORKDIR kept for backward compatibility with early drafts.
+        this.setting("ELIZA_ACP_WORKSPACE_ROOT") ??
+        this.setting("ELIZA_ACP_WORKDIR_ROOT") ??
+        this.setting("PARALLAX_CODING_DIRECTORY") ??
+        DEFAULT_WORKDIR_ROOT,
     );
     await mkdir(workdir, { recursive: true });
     await this.enforceSessionLimit();
@@ -747,7 +757,11 @@ function approvalArgs(preset: ApprovalPreset): string[] {
 }
 
 function normalizeApprovalPreset(value: string | undefined): ApprovalPreset {
-  if (value === "readonly" || value === "standard" || value === "permissive" || value === "autonomous") return value;
+  const normalized = value?.trim().toLowerCase();
+  if (normalized === "readonly" || normalized === "read-only" || normalized === "deny-all") return "readonly";
+  if (normalized === "standard" || normalized === "auto" || normalized === "default") return "standard";
+  if (normalized === "permissive" || normalized === "approve-all" || normalized === "full-access") return "permissive";
+  if (normalized === "autonomous") return "autonomous";
   return "autonomous";
 }
 

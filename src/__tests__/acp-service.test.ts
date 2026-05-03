@@ -19,7 +19,7 @@ type MockProc = EventEmitter & {
 
 const spawnMock = vi.mocked(spawn);
 
-function runtime() {
+function runtime(settings: Record<string, string | undefined> = {}) {
   return {
     logger: {
       debug: vi.fn(),
@@ -27,7 +27,7 @@ function runtime() {
       warn: vi.fn(),
       error: vi.fn(),
     },
-    getSetting: vi.fn(() => undefined),
+    getSetting: vi.fn((key: string) => settings[key]),
     services: new Map<string, unknown[]>(),
   } as never;
 }
@@ -221,6 +221,40 @@ describe("AcpService", () => {
     setImmediate(() => prompt.proc.emit("close", 1, null));
     await sent;
     expect(errors).toEqual(expect.arrayContaining([expect.objectContaining({ failureKind: "auth" })]));
+  });
+
+  it("honors public env aliases for workspace, approval, and prompt timeout", async () => {
+    const create = nextProc();
+    const service = new AcpService(runtime({
+      ELIZA_ACP_WORKSPACE_ROOT: "/tmp/acp-workspace-root",
+      ELIZA_ACP_DEFAULT_APPROVAL: "read-only",
+      ELIZA_ACP_PROMPT_TIMEOUT_MS: "123000",
+    }));
+    await service.start();
+
+    const spawned = service.spawnSession({ name: "env-alias", agentType: "codex" });
+    await waitForSpawn(create);
+    closeOk(create);
+    const { sessionId } = await spawned;
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      "acpx",
+      expect.arrayContaining(["--cwd", "/tmp/acp-workspace-root", "--deny-all"]),
+      expect.objectContaining({ cwd: "/tmp/acp-workspace-root" }),
+    );
+
+    const prompt = nextProc();
+    const sent = service.sendPrompt(sessionId, "hi");
+    await waitForSpawn(prompt);
+    prompt.proc.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","id":"req","result":{"stopReason":"end_turn"},"sessionId":"${sessionId}"}\n`));
+    closeOk(prompt);
+    await sent;
+
+    expect(spawnMock).toHaveBeenLastCalledWith(
+      "acpx",
+      expect.arrayContaining(["--timeout", "123"]),
+      expect.objectContaining({ cwd: "/tmp/acp-workspace-root" }),
+    );
   });
 
   it("reattach after dead pid respawns", async () => {
