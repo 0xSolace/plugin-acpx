@@ -10,7 +10,7 @@ export const availableAgentsProvider: Provider = {
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const service = getAcpService(runtime);
     if (!service) {
-      const text = "# acpx task agents\n@stwd/plugin-acpx task-agent service is not available.";
+      const text = "# acpx task agents\n@0xsolace/plugin-acpx task-agent service is not available.";
       return { text, values: { availableAgents: text }, data: { agents: [], activeSessions: [], serviceAvailable: false } };
     }
 

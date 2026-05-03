@@ -1,4 +1,4 @@
-# @stwd/plugin-acpx
+# @0xsolace/plugin-acpx
 
 ElizaOS plugin: acpx-backed task and subagent backend (wraps the `acpx` CLI to spawn coding agents). Sibling, not replacement, for `@elizaos/plugin-agent-orchestrator`. Distinct from `@elizaos/plugin-acp` (Shaw's ACP gateway client).
 
