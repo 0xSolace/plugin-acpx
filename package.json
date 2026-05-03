@@ -1,5 +1,5 @@
 {
-  "name": "@stwd/plugin-acpx",
+  "name": "@0xsolace/plugin-acpx",
   "version": "0.1.0-rc.1",
   "description": "acpx-backed task and subagent plugin for ElizaOS. Wraps the acpx CLI to spawn coding agents (codex/claude/gemini) as subprocesses and exposes them through ElizaOS actions.",
   "type": "module",

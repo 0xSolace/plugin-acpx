@@ -1,5 +1,5 @@
 # PARITY_SPEC.md
-Canonical parity specification for making `@stwd/plugin-acpx` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
+Canonical parity specification for making `@0xsolace/plugin-acpx` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
 Source baseline:
 - `.research/plugin-agent-orchestrator-README.md`
 - `.research/plugin-agent-orchestrator-package.json`
@@ -18,7 +18,7 @@ Line references cite the research mirror under `.research/plugin-agent-orchestra
 ---
 ## 1. Compatibility goal statement
 ### 1.1 Goal
-`@stwd/plugin-acpx` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
+`@0xsolace/plugin-acpx` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
 Drop-in compatible means:
 1. A runtime action lookup by canonical name finds the expected action.
 2. Legacy aliases in `similes` continue to route to the same behavior.
@@ -44,19 +44,19 @@ Source references:
 - `index.ts` exports compatibility aliases in lines 79 to 82 and action re-exports in lines 97 to 117.
 - Nyx's real consumer looks up `CREATE_TASK`, `PTY_SERVICE`, and `onSessionEvent` in `.research/nyx-spawn-codex/spawn_codex.js` lines 83 to 90 and 117 to 150.
 ### 1.2 Side-by-side loading
-`@stwd/plugin-acpx` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
+`@0xsolace/plugin-acpx` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
 Side-by-side requirement:
-1. Plugin name must be distinct, for example `@stwd/plugin-acpx`.
+1. Plugin name must be distinct, for example `@0xsolace/plugin-acpx`.
 2. Canonical action names overlap by design. Eliza runtimes that allow duplicate action names may use load order to choose. Tests must cover runtime lookup by name.
 3. Services should avoid clobbering orchestrator internals unless compatibility mode is explicitly enabled.
-4. To satisfy third-party consumers, @stwd/plugin-acpx must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
-5. @stwd/plugin-acpx may additionally provide `ACP_SUBPROCESS_SERVICE`, but external compatibility requires the `PTY_SERVICE`-compatible method surface.
+4. To satisfy third-party consumers, @0xsolace/plugin-acpx must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
+5. @0xsolace/plugin-acpx may additionally provide `ACP_SUBPROCESS_SERVICE`, but external compatibility requires the `PTY_SERVICE`-compatible method surface.
 Recommendation:
 - Register `AcpxSubprocessService` under `ACP_SUBPROCESS_SERVICE` as the primary service.
 - Register or expose a thin `PTY_SERVICE` facade that delegates to it when no existing `PTY_SERVICE` is present.
-- If another plugin already registered `PTY_SERVICE`, do not replace it by default. Log a warning and keep @stwd/plugin-acpx action handlers using `ACP_SUBPROCESS_SERVICE` directly. For Nyx compatibility, deployments that swap imports must not load orchestrator simultaneously.
+- If another plugin already registered `PTY_SERVICE`, do not replace it by default. Log a warning and keep @0xsolace/plugin-acpx action handlers using `ACP_SUBPROCESS_SERVICE` directly. For Nyx compatibility, deployments that swap imports must not load orchestrator simultaneously.
 ### 1.3 Deliberate non-goals
-@stwd/plugin-acpx is not required to replicate the full Milady orchestrator product.
+@0xsolace/plugin-acpx is not required to replicate the full Milady orchestrator product.
 Do not match:
 1. Git workspace provisioning actions, except for minimal workdir/scratch behavior required by `CREATE_TASK`.
 2. `PROVISION_WORKSPACE` and `FINALIZE_WORKSPACE` action behavior.
@@ -68,7 +68,7 @@ Do not match:
 8. Structured proof bridge for app/plugin sentinels.
 9. Task history, task share, issue management, and frontend API routes.
 ### 1.4 Compatible but cleaner alternatives
-Some orchestrator behavior is intentionally ugly or product-specific. @stwd/plugin-acpx should mirror third-party contracts, not every implementation wart.
+Some orchestrator behavior is intentionally ugly or product-specific. @0xsolace/plugin-acpx should mirror third-party contracts, not every implementation wart.
 Keep these contracts:
 - `CREATE_TASK` returns `{ data: { agents: [...] } }` with `sessionId`, `agentType`, `workdir`, `label`, and `status`.
 - `onSessionEvent` emits `task_complete` with `{ response }`, `stopped`, and `error` with `{ message }`.
@@ -76,10 +76,10 @@ Keep these contracts:
 Clean alternatives:
 - Replace the heavy SwarmCoordinator with a compact session store plus event emitter.
 - Replace subscription-aware auto-picking with deterministic env defaults.
-- Replace workspace service dependencies with @stwd/plugin-acpx-managed scratch directories.
+- Replace workspace service dependencies with @0xsolace/plugin-acpx-managed scratch directories.
 - Implement `CANCEL_TASK` as a clean canonical action instead of relying on `TASK_CONTROL` or `STOP_AGENT` naming ambiguity.
 ### 1.5 TODO verification markers
-This spec uses `**TODO verify**` only where source behavior was not fully explicit or where @stwd/plugin-acpx must make a choice because orchestrator has no exact action.
+This spec uses `**TODO verify**` only where source behavior was not fully explicit or where @0xsolace/plugin-acpx must make a choice because orchestrator has no exact action.
 ---
 ## 2. Action specs
 All six actions must be registered on the plugin:
@@ -128,10 +128,10 @@ Source references:
 - `CREATE_TASK` extracts params and content in `start-coding-task.ts` lines 443 to 445.
 Common service requirement:
 - Orchestrator validates by checking `runtime.getService("PTY_SERVICE")` for most actions.
-- `@stwd/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
+- `@0xsolace/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
 Common access policy:
 - Orchestrator calls `requireTaskAgentAccess(runtime, message, "create")` for create/spawn and `"interact"` for list/send/stop/control.
-- @stwd/plugin-acpx can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
+- @0xsolace/plugin-acpx can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
 ---
 ### 2.2 `SPAWN_AGENT`
 #### 2.2.1 Name
@@ -171,7 +171,7 @@ Rationale:
 - A non-empty continuation can trigger duplicate spawns.
 Source: `spawn-agent.ts` lines 131 to 139.
 #### 2.2.5 Input schema
-Parameters @stwd/plugin-acpx must accept:
+Parameters @0xsolace/plugin-acpx must accept:
 ```ts
 parameters: [
   { name: "agentType", required: false, schema: { type: "string" } },
@@ -189,7 +189,7 @@ Orchestrator reads these dynamically:
 - `memoryContent`: `spawn-agent.ts` lines 381 to 382.
 - `approvalPreset`: `spawn-agent.ts` lines 383 to 384 and 531 to 533.
 - `keepAliveAfterComplete`: `spawn-agent.ts` lines 385 to 387 and 520.
-@stwd/plugin-acpx addition:
+@0xsolace/plugin-acpx addition:
 - Declare the parameter metadata explicitly so action documentation is complete.
 #### 2.2.6 Validation rules
 Return `false` if service is unavailable.
@@ -204,8 +204,8 @@ Source:
 - Explicit payload check: `spawn-agent.ts` lines 87 to 100 and 186 to 188.
 - Empty text behavior: `spawn-agent.ts` lines 190 to 193.
 - Task-agent text heuristic: `spawn-agent.ts` line 195.
-@stwd/plugin-acpx implementation guidance:
-- If @stwd/plugin-acpx does not implement `looksLikeTaskAgentRequest`, use a simple complexity regex covering code, debug, fix, implement, investigate, research, summarize, write, plan, delegate, subagent, repo, test.
+@0xsolace/plugin-acpx implementation guidance:
+- If @0xsolace/plugin-acpx does not implement `looksLikeTaskAgentRequest`, use a simple complexity regex covering code, debug, fix, implement, investigate, research, summarize, write, plan, delegate, subagent, repo, test.
 - This regex mirrors `task-agent-frameworks.ts` lines 234 to 235.
 #### 2.2.7 Handler behavior
 Ordered behavior:
@@ -226,7 +226,7 @@ Ordered behavior:
 15. Set `state.codingSession = session` if state exists. **TODO verify** exact source line after 620 was not re-read, but stop/send actions rely on `state.codingSession` in `send-to-agent.ts` lines 134 to 138 and `stop-agent.ts` lines 164 to 168.
 16. Return success with empty text if possible to avoid duplicate chat.
 #### 2.2.8 Output shape
-@stwd/plugin-acpx must return this shape on success:
+@0xsolace/plugin-acpx must return this shape on success:
 ```ts
 {
   success: true,
@@ -243,7 +243,7 @@ Ordered behavior:
 ```
 Compatibility note:
 - `SPAWN_AGENT` is direct-session oriented. Nyx does not consume it.
-- To make W6 simpler, @stwd/plugin-acpx may also include `data.agents: [agentRecord]`, but this is required only for `CREATE_TASK`.
+- To make W6 simpler, @0xsolace/plugin-acpx may also include `data.agents: [agentRecord]`, but this is required only for `CREATE_TASK`.
 #### 2.2.9 HandlerCallback usage
 Use callback for:
 - Access denial reason.
@@ -316,7 +316,7 @@ Source: `send-to-agent.ts` lines 275 to 311.
 Return false if service unavailable.
 Return true only if `listSessions()` completes within 2 seconds and has at least one session.
 Source: `send-to-agent.ts` lines 70 to 94.
-@stwd/plugin-acpx implementation guidance:
+@0xsolace/plugin-acpx implementation guidance:
 - Preserve the 2 second validation timeout so action selection does not hang.
 - W4 `listSessions()` must be fast and safe.
 #### 2.3.6 Handler behavior
@@ -465,7 +465,7 @@ Mirror orchestrator:
 ]
 ```
 Source: `stop-agent.ts` lines 26 to 34.
-@stwd/plugin-acpx addition:
+@0xsolace/plugin-acpx addition:
 - `CANCEL_TASK` should be a separate canonical action, but `STOP_AGENT.similes` must still include `CANCEL_TASK_AGENT`.
 #### 2.5.3 Description
 Stop a running task-agent session, terminating the PTY session and cleaning up resources.
@@ -563,7 +563,7 @@ parameters: [
 ]
 ```
 Source: `start-coding-task.ts` lines 659 to 772.
-@stwd/plugin-acpx must additionally accept undeclared but consumed values:
+@0xsolace/plugin-acpx must additionally accept undeclared but consumed values:
 ```ts
 { workdir?: string, reuseRepo?: boolean, model?: string }
 ```
@@ -605,10 +605,10 @@ High-level behavior:
 13. Build `CodingTaskContext`. Source: `start-coding-task.ts` lines 601 to 623.
 14. Dispatch to multi-agent handler by split user text, `agents`, or single preserved task. Source: `start-coding-task.ts` lines 625 to 657.
 #### 2.6.8 Multi-agent behavior
-@stwd/plugin-acpx must mimic `handleMultiAgent` public contract, not the entire implementation.
+@0xsolace/plugin-acpx must mimic `handleMultiAgent` public contract, not the entire implementation.
 Required behavior:
 1. Parse `agents` by `|`, trim, filter empty. Source: `coding-task-handlers.ts` lines 669 to 679.
-2. Cap count to `MAX_CONCURRENT_AGENTS`. Source: `coding-task-handlers.ts` lines 681 to 689. **TODO verify** the actual constant value in source header if @stwd/plugin-acpx wants exact cap. Recommended @stwd/plugin-acpx cap: 8 to match PTY default concurrency in `pty-types.ts` lines 25 to 36.
+2. Cap count to `MAX_CONCURRENT_AGENTS`. Source: `coding-task-handlers.ts` lines 681 to 689. **TODO verify** the actual constant value in source header if @0xsolace/plugin-acpx wants exact cap. Recommended @0xsolace/plugin-acpx cap: 8 to match PTY default concurrency in `pty-types.ts` lines 25 to 36.
 3. If repo present and no workspace implementation, either return `{ success: false, error: "WORKSPACE_SERVICE_UNAVAILABLE" }` or support minimal clone/workdir behavior. Source: `coding-task-handlers.ts` lines 691 to 698.
 4. Do not emit routine `Launching N agents...` callback. Source: `coding-task-handlers.ts` lines 700 to 703.
 5. Create one task thread in W5 if store exists. Source: `coding-task-handlers.ts` lines 762 to 790.
@@ -680,7 +680,7 @@ Important:
 - launch failure through `success: false` with `data.agents` and no top-level `error`
 #### 2.6.12 Notes for W4
 W4 must expose `resolveAgentType(selection?)`.
-Minimum @stwd/plugin-acpx behavior:
+Minimum @0xsolace/plugin-acpx behavior:
 - Explicit `agentType` wins.
 - Else `ELIZA_ACP_DEFAULT_AGENT` wins.
 - Else `PARALLAX_DEFAULT_AGENT_TYPE` compatibility value wins.
@@ -713,7 +713,7 @@ Related source behavior:
 - `STOP_AGENT` includes `CANCEL_AGENT` and `CANCEL_TASK_AGENT` aliases in `stop-agent.ts` lines 26 to 34.
 - `TASK_CONTROL` includes `STOP_TASK` and infers `stop` from the word `cancel` in `task-control.ts` lines 14 to 20, 43 to 51, and 54 to 64.
 - `TASK_CONTROL` handler stops durable task threads, not just PTY sessions, in `task-control.ts` lines 171 to 207.
-Because the user explicitly requires `CANCEL_TASK`, @stwd/plugin-acpx must add it as a clean canonical compatibility action.
+Because the user explicitly requires `CANCEL_TASK`, @0xsolace/plugin-acpx must add it as a clean canonical compatibility action.
 #### 2.7.3 Aliases
 Recommended:
 ```ts
@@ -790,11 +790,11 @@ W4:
 W5:
 - Must resolve a thread by thread id, session id, search, or most recent active.
 - Must keep history, not delete records.
-**TODO verify** whether W6 should map `CANCEL_TASK` to a `TASK_CONTROL`-compatible export as well. The source has no `CANCEL_TASK` action, so @stwd/plugin-acpx's clean action is additive.
+**TODO verify** whether W6 should map `CANCEL_TASK` to a `TASK_CONTROL`-compatible export as well. The source has no `CANCEL_TASK` action, so @0xsolace/plugin-acpx's clean action is additive.
 ---
 ## 3. Service interfaces
 ### 3.1 `AcpxSubprocessService` compatibility interface for W4
-@stwd/plugin-acpx's service should be implementable without PTY internals but must satisfy orchestrator-compatible call sites.
+@0xsolace/plugin-acpx's service should be implementable without PTY internals but must satisfy orchestrator-compatible call sites.
 ```ts
 export type AcpAgentType = "claude" | "codex" | "gemini" | "aider" | "pi" | "shell" | string;
 export type AcpSessionStatus =
@@ -1060,7 +1060,7 @@ Source basis:
 - `RecordTaskTranscriptInput`: `task-registry.ts` lines 442 to 449.
 - Thread/session status normalization: `task-registry.ts` lines 715 to 743.
 ### 3.4 Status mapping
-@stwd/plugin-acpx statuses must map to orchestrator strings:
+@0xsolace/plugin-acpx statuses must map to orchestrator strings:
 - Running acpx process maps to `running` or `active` for store, and a session status acceptable to callers.
 - Blocked maps to `blocked`.
 - Waiting for auth maps to `authenticating` or event `login_required`.
@@ -1069,7 +1069,7 @@ Source basis:
 - User cancellation maps to `stopped` event and store `interrupted` or `canceled`.
 ---
 ## 4. Type exports from `index.ts`
-@stwd/plugin-acpx should mirror the exports that third-party code is likely to import, while replacing internals with acpx equivalents.
+@0xsolace/plugin-acpx should mirror the exports that third-party code is likely to import, while replacing internals with acpx equivalents.
 ### 4.1 Plugin exports
 Export:
 ```ts
@@ -1108,7 +1108,7 @@ export { AcpxSubprocessService as PTYService } from "./services/acpx-subprocess-
 ```
 Reason:
 - External code may import `PTYService` from orchestrator. Orchestrator exports it in `index.ts` line 134.
-- @stwd/plugin-acpx can alias `PTYService` to its compatibility facade.
+- @0xsolace/plugin-acpx can alias `PTYService` to its compatibility facade.
 ### 4.4 Type exports
 Mirror type names where possible:
 ```ts
@@ -1122,7 +1122,7 @@ export type {
 };
 ```
 Orchestrator exports these PTY types in `index.ts` lines 126 to 132 and defines them in `pty-types.ts` lines 18 to 136.
-Adapter types from `coding-agent-adapters` may not exist in @stwd/plugin-acpx. Recommended compatibility exports:
+Adapter types from `coding-agent-adapters` may not exist in @0xsolace/plugin-acpx. Recommended compatibility exports:
 ```ts
 export type AdapterType = "claude" | "codex" | "gemini" | "aider";
 export type ApprovalPreset = "readonly" | "standard" | "permissive" | "autonomous";
@@ -1157,7 +1157,7 @@ Orchestrator generates a character-voice failure message with constraints:
 - 1 to 3 short sentences
 - do not claim task ran or succeeded
 Source: `coding-task-handlers.ts` lines 282 to 305.
-@stwd/plugin-acpx can use deterministic text instead of an LLM:
+@0xsolace/plugin-acpx can use deterministic text instead of an LLM:
 ```txt
 I couldn't start the task agent: <short blocker>. Nothing ran yet.
 ```
@@ -1170,7 +1170,7 @@ Direct event handlers should not post per-agent `task_complete` messages in norm
 Source:
 - `registerSessionEvents` avoids blocked and task_complete chat messages in `coding-task-helpers.ts` lines 158 to 175.
 - The SwarmCoordinator or async streamer owns final synthesis.
-@stwd/plugin-acpx event convention:
+@0xsolace/plugin-acpx event convention:
 - Emit `task_complete` event with `response` for in-process consumers.
 - If W6 has a chat callback path for direct sessions, callback final output only once.
 - Do not echo the original task as the final result.
@@ -1204,8 +1204,8 @@ When creating synthetic or stored messages, preserve:
 Nyx synthetic message sets these fields in `.research/nyx-spawn-codex/spawn_codex.js` lines 216 to 243.
 ---
 ## 6. Configuration env vars
-@stwd/plugin-acpx should support its own env vars and compatibility aliases.
-### 6.1 @stwd/plugin-acpx primary vars
+@0xsolace/plugin-acpx should support its own env vars and compatibility aliases.
+### 6.1 @0xsolace/plugin-acpx primary vars
 ```txt
 ELIZA_ACP_CLI
 ELIZA_ACP_DEFAULT_AGENT
@@ -1281,7 +1281,7 @@ Source references:
 ### 6.3 Precedence
 Recommended precedence:
 1. Explicit action params.
-2. @stwd/plugin-acpx env vars.
+2. @0xsolace/plugin-acpx env vars.
 3. Orchestrator compatibility env vars or runtime settings.
 4. Config-file env section when available.
 5. Built-in defaults.
@@ -1289,10 +1289,10 @@ Orchestrator often reads config file first, then runtime, then process env. Exam
 - `readConfigEnvKey` reads config env in `config-env.ts` lines 32 to 36.
 - `safeGetSetting` checks config first, then runtime in `task-agent-frameworks.ts` lines 274 to 293.
 - Scratch dir checks runtime, config, then process env in `coding-task-helpers.ts` lines 62 to 69.
-@stwd/plugin-acpx may choose a simpler precedence, but document it in code and tests.
+@0xsolace/plugin-acpx may choose a simpler precedence, but document it in code and tests.
 ---
 ## 7. Explicitly not matched
-@stwd/plugin-acpx must not spend migration time on these orchestrator surfaces unless a later requirement adds them.
+@0xsolace/plugin-acpx must not spend migration time on these orchestrator surfaces unless a later requirement adds them.
 ### 7.1 Workspace actions
 Do not implement full:
 - `PROVISION_WORKSPACE`
@@ -1303,7 +1303,7 @@ Do not implement full:
 - pushes
 - PR creation
 Source: README lists workspace features in README lines 129 to 164 and canonical workspace actions in README lines 73 to 74.
-@stwd/plugin-acpx requirement is only:
+@0xsolace/plugin-acpx requirement is only:
 - `CREATE_TASK` can accept `repo` and either clone minimally or return `WORKSPACE_SERVICE_UNAVAILABLE`.
 - For Nyx, `workdir` scratch is sufficient.
 ### 7.2 SwarmCoordinator internals
@@ -1329,7 +1329,7 @@ Do not match Milady subscription detection:
 - cloud proxy key detection
 - account pool failover
 Source: README lines 12, 28 to 34, and 194 to 206; framework code in `task-agent-frameworks.ts` lines 427 to 455 and 620 to 649.
-@stwd/plugin-acpx should implement deterministic default selection.
+@0xsolace/plugin-acpx should implement deterministic default selection.
 ### 7.5 Skill bridge and structured proof bridge
 Do not match:
 - `MILADY_SKILLS_MANIFEST`
@@ -1344,7 +1344,7 @@ Do not match unless requested:
 - `TASK_HISTORY`
 - `TASK_SHARE`
 - `MANAGE_ISSUES`
-They are registered by orchestrator in `index.ts` lines 59 to 67, but not part of the six-action @stwd/plugin-acpx parity target.
+They are registered by orchestrator in `index.ts` lines 59 to 67, but not part of the six-action @0xsolace/plugin-acpx parity target.
 ---
 ## 8. Nyx `spawn_codex` compatibility
 ### 8.1 Consumer contract
@@ -1388,9 +1388,9 @@ Synthetic message content contains:
 }
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 216 to 227.
-@stwd/plugin-acpx must read `workdir` from message content even though `options.parameters` does not include it.
+@0xsolace/plugin-acpx must read `workdir` from message content even though `options.parameters` does not include it.
 ### 8.3 Required `CREATE_TASK` result for Nyx
-If action throws, Nyx returns error. @stwd/plugin-acpx should not throw for expected failures.
+If action throws, Nyx returns error. @0xsolace/plugin-acpx should not throw for expected failures.
 If no result, Nyx returns error.
 If `success === false`, Nyx builds a failure reason from `text`, `error`, and callback texts.
 If success but no session ids, Nyx returns error.
@@ -1416,7 +1416,7 @@ Required success:
 ```
 ### 8.4 Required event stream for Nyx
 Nyx subscribes before invoking the action, buffers untracked events, then calls `track(sessionIds)` after action result.
-@stwd/plugin-acpx must emit events through `onSessionEvent` in-process.
+@0xsolace/plugin-acpx must emit events through `onSessionEvent` in-process.
 Nyx ingests:
 ```js
 if (event === "task_complete") {
@@ -1435,7 +1435,7 @@ if (event === "task_complete") {
 }
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 278 to 298.
-Therefore @stwd/plugin-acpx must:
+Therefore @0xsolace/plugin-acpx must:
 1. Emit `task_complete` with `data.response` when the acpx subagent produces a final answer.
 2. Emit `stopped` after process exits or is auto-stopped.
 3. Include `data.response` on `stopped` if no prior `task_complete` was emitted and final output exists.
@@ -1447,29 +1447,29 @@ Nyx treats all sessions as terminal when:
 - all sessions emitted at least one `task_complete` and 1500 ms have elapsed, or
 - hard timeout trips.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 301 to 360.
-@stwd/plugin-acpx should emit `task_complete` promptly and then `stopped` soon after to avoid waiting for timeout.
+@0xsolace/plugin-acpx should emit `task_complete` promptly and then `stopped` soon after to avoid waiting for timeout.
 ### 8.6 Framework downgrade note
 Nyx detects downgrade:
 ```js
 const downgrade = agentRecords.find((a) => a.agentType && a.agentType !== "codex");
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 151 to 154.
-@stwd/plugin-acpx should honor `agentType: "codex"` exactly when supplied. Do not silently route Nyx to another framework unless codex is unavailable and the action is still considered success. If downgraded, set `agentType` to actual framework so Nyx can report it.
+@0xsolace/plugin-acpx should honor `agentType: "codex"` exactly when supplied. Do not silently route Nyx to another framework unless codex is unavailable and the action is still considered success. If downgraded, set `agentType` to actual framework so Nyx can report it.
 ### 8.7 Callback capture
 Nyx passes a callback that buffers text and returns `[]`.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 93 to 101.
-@stwd/plugin-acpx must not assume callback output is chat-visible or that it returns `void`.
+@0xsolace/plugin-acpx must not assume callback output is chat-visible or that it returns `void`.
 ### 8.8 Workdir contract
 Nyx default workdir is `/workspace/tasks/<timestamp>-<uuid8>`.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 34 to 36 and 185 to 195.
-@stwd/plugin-acpx must:
+@0xsolace/plugin-acpx must:
 - create the workdir if absent
 - pass it to subprocess cwd
 - return it unchanged in `data.agents[0].workdir`
 ### 8.9 Model contract
 Nyx forwards optional `model` and says it should set `OPENAI_MODEL` via orchestrator.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 64 to 68 and 117 to 123.
-Orchestrator source does not visibly consume `model` in `CREATE_TASK` handler sections read. @stwd/plugin-acpx should implement this cleanly:
+Orchestrator source does not visibly consume `model` in `CREATE_TASK` handler sections read. @0xsolace/plugin-acpx should implement this cleanly:
 - If `agentType === "codex"` and `model` provided, set `OPENAI_MODEL=model` in subprocess env or translate to acpx CLI model flag.
 - Preserve `metadata.modelPrefs` if W6 uses model prefs.
 **TODO verify** exact orchestrator model forwarding path for `model` because the researched `CREATE_TASK` handler did not show direct `model` extraction.
@@ -1531,7 +1531,7 @@ Assert:
 - `stopSession()` emits `stopped`.
 ### 9.5 Integration tests for Nyx contract
 Port `.research/nyx-spawn-codex/spawn_codex.js` behavior into tests:
-1. Build runtime with `@stwd/plugin-acpx` only.
+1. Build runtime with `@0xsolace/plugin-acpx` only.
 2. Find `CREATE_TASK` by name.
 3. Find `PTY_SERVICE`.
 4. Invoke handler with synthetic message:
@@ -1553,7 +1553,7 @@ If `ELIZA_ACP_CLI` is configured:
 - `STOP_AGENT` cleans up
 Skip when CLI not available.
 ### 9.7 E2E tests
-Create an Eliza runtime with `@stwd/plugin-acpx`.
+Create an Eliza runtime with `@0xsolace/plugin-acpx`.
 Scenarios:
 1. User asks a multi-step coding/research task. Planner calls `CREATE_TASK`. No duplicate post-action continuation.
 2. User asks to send follow-up to the running agent. Planner calls `SEND_TO_AGENT`.
