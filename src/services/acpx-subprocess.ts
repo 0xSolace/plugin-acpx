@@ -1,3 +1,12 @@
-// TODO(W4): Implement ACPX subprocess lifecycle, NDJSON parsing, and cooperative cancel.
-
-export {};
+export { AcpService, AcpxSubprocessService } from "./acp-service.js";
+export type {
+  AcpEventCallback,
+  AcpJsonRpcMessage,
+  AvailableAgentInfo,
+  PromptResult,
+  SendOptions,
+  SessionEventCallback,
+  SessionInfo,
+  SpawnOptions,
+  SpawnResult,
+} from "./types.js";
