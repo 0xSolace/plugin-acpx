@@ -3,28 +3,34 @@
 [![npm version](https://img.shields.io/npm/v/@elizaos/plugin-acp.svg)](https://www.npmjs.com/package/@elizaos/plugin-acp)
 [![license](https://img.shields.io/npm/l/@elizaos/plugin-acp.svg)](./LICENSE)
 
-`@elizaos/plugin-acp` is an ElizaOS plugin for orchestrating coding agents through ACPX, the Agent Client Protocol CLI. It is designed as a structured, ACP-native sibling to the PTY-based `@elizaos/plugin-agent-orchestrator`, exposing the same high-level action surface while using typed streaming events, named sessions, and cooperative cancellation under the hood.
+ElizaOS plugin for orchestrating coding agents through [ACPX](https://github.com/0xouroboros/acp), the Agent Client Protocol CLI. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured ACP events under the hood instead of PTY scraping.
 
-## Status
+## Why
 
-Alpha. This package is currently bootstrapped for `0.1.0-rc.1`; services, actions, and providers are scaffolded but not implemented yet.
+`plugin-agent-orchestrator` runs each coding agent (codex, claude, gemini, ...) inside a pseudo-terminal and parses ANSI escape codes, prompt regexes, and stall heuristics. It works, but it inherits every quirk of every agent's terminal UI.
+
+`plugin-acp` swaps the transport: it spawns each agent through `acpx`, which speaks the [Agent Client Protocol](https://agentclientprotocol.com/) and emits a typed JSON-RPC stream:
+
+- structured `tool_call` / `tool_call_update` events instead of ANSI scraping
+- cooperative cancellation via `session/cancel`
+- crash recovery via `session/load`
+- parallel sessions in the same workspace
+- `agent_message_chunk` for streaming text instead of pty buffer reads
+- works for codex, claude, gemini today; cursor/copilot/droid/qwen via acpx 0.7+
+
+The plugin keeps the same action names so existing flows continue to work.
 
 ## Installation
 
 ```bash
 npm install @elizaos/plugin-acp
+npm install -g acpx@latest
+acpx --version
 ```
 
-ACPX must also be installed and available on your `PATH`, or configured with `ELIZA_ACP_CLI`:
-
-```bash
-npm install -g acpx
-acpx --help
-```
+You also need at least one ACP-compatible agent CLI installed (`codex`, `claude`, or `gemini`) and authenticated.
 
 ## Quick start
-
-Load the plugin in your Eliza project:
 
 ```ts
 import acpPlugin from "@elizaos/plugin-acp";
@@ -34,39 +40,131 @@ export default {
 };
 ```
 
-Then invoke the ACP-compatible orchestration actions from your Eliza runtime once the implementation lands.
+Once loaded, the plugin registers `AcpService` (also aliased as `PTY_SERVICE` for back-compat with `plugin-agent-orchestrator` consumers), six actions, and one provider.
 
-## Actions reference
+## Actions
 
-| Action | Purpose | Status |
-| --- | --- | --- |
-| `SPAWN_AGENT` | Start an ACP coding-agent session. | Planned |
-| `SEND_TO_AGENT` | Send a prompt or follow-up input to a running session. | Planned |
-| `LIST_AGENTS` | List active and persisted ACP sessions. | Planned |
-| `STOP_AGENT` | Stop a running session using cooperative ACP cancellation. | Planned |
-| `CREATE_TASK` | Spawn an agent, send the first prompt, and return when complete. | Planned |
-| `CANCEL_TASK` | Cancel an async task cooperatively. | Planned |
+| Action | Purpose |
+| --- | --- |
+| `SPAWN_AGENT` | Start a long-lived ACP coding-agent session. Returns `data.agents[]`. |
+| `SEND_TO_AGENT` | Send a prompt to a running session, await completion. |
+| `LIST_AGENTS` | List active and persisted sessions. |
+| `STOP_AGENT` | Cooperatively cancel + close a session. |
+| `CREATE_TASK` | One-shot: spawn + prompt + return. Used by nyx-style task agents. |
+| `CANCEL_TASK` | Cancel an in-flight task. |
+
+`CREATE_TASK` returns a shape compatible with `plugin-agent-orchestrator`:
+
+```ts
+{
+  data: {
+    agents: [{ id, sessionId, agentType, name, workdir }],
+  },
+  text: "...",
+}
+```
+
+## Provider
+
+`availableAgentsProvider` exposes installed/auth-status/agent-type info to the runtime state, so the model can pick the right agent type at call time.
+
+## Service
+
+`AcpService` is the core — wraps acpx subprocess lifecycle, NDJSON parsing, session state, and event emission.
+
+```ts
+import { AcpService } from "@elizaos/plugin-acp";
+
+const acp = runtime.getService("PTY_SERVICE") as AcpService;
+// or: runtime.getService("ACP_SERVICE") as AcpService;
+
+const { sessionId } = await acp.spawnSession({
+  agentType: "codex",
+  workdir: "/tmp/my-task",
+  approvalPreset: "permissive",
+});
+
+const result = await acp.sendPrompt(sessionId, "what is 7 + 8?");
+console.log(result.finalText);     // "15"
+console.log(result.stopReason);    // "end_turn"
+console.log(result.durationMs);    // 4864
+```
+
+### Subscribing to events
+
+```ts
+acp.onSessionEvent((sessionId, eventName, data) => {
+  // eventName: "ready" | "message" | "tool_running" | "task_complete" | "stopped" | "error" | "blocked" | "login_required" | "reconnected"
+  // data shape depends on eventName, see SessionEventName in src/services/types.ts
+});
+```
+
+The `task_complete` event matches `plugin-agent-orchestrator`'s shape:
+
+```ts
+{ response: string, durationMs: number, stopReason: "end_turn" | "error" | string }
+```
 
 ## Configuration
 
-Configuration is read from environment variables.
+All configuration is via environment variables. Sensible defaults — most users only need `ELIZA_ACP_CLI` if `acpx` is not on PATH.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `ELIZA_ACP_CLI` | `acpx` | ACPX executable to spawn. |
-| `ELIZA_ACP_DEFAULT_AGENT` | `codex` | Default ACP-compatible agent when an action does not specify one. |
-| `ELIZA_ACP_TIMEOUT` | `300000` | Default action/session timeout in milliseconds. |
-| `ELIZA_ACP_WORKDIR` | runtime working directory | Base working directory for spawned coding agents. |
-| `ELIZA_ACP_MAX_SESSIONS` | implementation-defined | Optional cap on concurrently tracked sessions. |
-| `ELIZA_ACP_LOG_LEVEL` | `info` | Logging verbosity for ACP subprocess events. |
+| `ELIZA_ACP_CLI` | `acpx` | ACPX executable name or absolute path. |
+| `ELIZA_ACP_DEFAULT_AGENT` | `codex` | Default agent type. |
+| `ELIZA_ACP_DEFAULT_APPROVAL` | `autonomous` | Approval preset (`read-only`, `auto`, `permissive`, `autonomous`, `full-access`). |
+| `ELIZA_ACP_PROMPT_TIMEOUT_MS` | `1800000` (30m) | Per-prompt timeout. |
+| `ELIZA_ACP_AUTH_TIMEOUT_MS` | `120000` | Auth handshake timeout. |
+| `ELIZA_ACP_STATE_DIR` | `~/.eliza/plugin-acp` | Where to persist session state when no runtime DB. |
+| `ELIZA_ACP_WORKSPACE_ROOT` | runtime cwd | Base directory for spawned agent workdirs. |
+| `ELIZA_ACP_LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`. |
+| `ELIZA_ACP_MAX_SESSIONS` | unlimited | Concurrent session cap. |
+| `ELIZA_ACP_REGISTER_AS_PTY_SERVICE` | `true` | Register service under `PTY_SERVICE` alias for back-compat. |
 
-## Relationship to plugin-agent-orchestrator
+## Persistence
 
-This package is a sibling, not a replacement, for `@elizaos/plugin-agent-orchestrator`. The orchestrator plugin manages CLI agents through PTYs and terminal-output heuristics. `@elizaos/plugin-acp` targets the same action surface as a drop-in transport swap, but relies on ACPX and structured Agent Client Protocol events instead of terminal scraping.
+Session state is persisted with a tiered backend:
+
+1. If `runtime.databaseAdapter` exposes SQL methods, sessions live in `acp_sessions` table.
+2. Otherwise, JSON file at `$ELIZA_ACP_STATE_DIR/sessions.json` (atomic writes via temp+rename).
+3. Last resort: in-memory `Map` (warns that sessions won't survive restart).
+
+## End-to-end smoke test
+
+The repo ships with a real e2e smoke at `tests/e2e/acp-codex-smoke.mjs`:
+
+```bash
+npm install -g acpx@latest
+# authenticate codex first
+npm run build
+node tests/e2e/acp-codex-smoke.mjs
+```
+
+It spawns a real codex session, sends "what is 7 + 8?", and verifies `task_complete` fires with response `"15"`. Useful as a sanity check before integrating into a real runtime.
+
+## Compatibility with plugin-agent-orchestrator
+
+You can run both plugins side-by-side. The actions don't conflict by name — actions are dispatched by description matching, not name collision. To make `runtime.getService("PTY_SERVICE")` return the ACP service, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=true` (default) and don't load `plugin-agent-orchestrator`. To use both, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=false` and let the orchestrator own the PTY_SERVICE alias.
+
+## Status
+
+`0.1.0-rc.1` — alpha, but every layer is implemented and tested:
+
+- 9 test files, 37 unit tests, 100% passing
+- real e2e smoke against acpx + codex passes
+- nyx-compatible CREATE_TASK + PTY_SERVICE alias
+
+What's deferred to later versions:
+
+- `provision_workspace` / `finalize_workspace` (use git directly for now)
+- `manage_issues` / GitHub integration
+- swarm-coordinator (sibling-to-sibling agent comms)
+- aider, pi, replit-agent (waiting for acpx coverage)
 
 ## Contributing
 
-Contributions are welcome while the package is in alpha. Please keep changes aligned with the parity goals in `PROJECT.md`, add tests for implemented actions and services, and avoid publishing staged release candidates without maintainer approval.
+PRs welcome. Run `npm run typecheck && npm test` before opening.
 
 ## License
 

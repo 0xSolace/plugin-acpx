@@ -1,0 +1,20 @@
+# don't ship to npm:
+.research/
+tests/e2e/
+src/__tests__/
+docs/
+PROJECT.md
+.git/
+.gitignore
+.vscode/
+.idea/
+*.log
+node_modules/
+coverage/
+.nyc_output/
+tsconfig.json
+tsconfig.build.json
+vitest.config.ts
+.npmignore
+
+# but DO ship src/ (for source maps + types)
