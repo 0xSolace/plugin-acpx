@@ -228,7 +228,7 @@ export class InMemorySessionStore implements SessionStore {
 
   async updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
     const patch: Partial<SessionInfo> = { status };
-    if (status === "errored" || status === "error") patch.lastError = error;
+    if (status === "errored") patch.lastError = error;
     await this.update(id, patch);
   }
 
@@ -245,7 +245,7 @@ export class InMemorySessionStore implements SessionStore {
       const staleIds = [...this.sessions.values()]
         .filter(
           (session) =>
-            (session.status === "stopped" || session.status === "errored" || session.status === "error") &&
+            (session.status === "stopped" || session.status === "errored") &&
             now - session.lastActivityAt.getTime() > maxAgeMs,
         )
         .map((session) => session.id);
@@ -433,7 +433,7 @@ export class RuntimeDbSessionStore implements SessionStore {
 
   async updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
     const patch: Partial<SessionInfo> = { status };
-    if (status === "errored" || status === "error") patch.lastError = error;
+    if (status === "errored") patch.lastError = error;
     await this.update(id, patch);
   }
 
@@ -449,8 +449,8 @@ export class RuntimeDbSessionStore implements SessionStore {
       await this.ensureInitialized();
       const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
       const stale = await this.getMany(
-        "SELECT * FROM acp_sessions WHERE (status = ? OR status = ? OR status = ?) AND last_activity_at < ?",
-        ["stopped", "errored", "error", cutoff],
+        "SELECT * FROM acp_sessions WHERE (status = ? OR status = ?) AND last_activity_at < ?",
+        ["stopped", "errored", cutoff],
       );
       for (const session of stale) {
         await this.execute("DELETE FROM acp_sessions WHERE id = ?", [session.id]);
