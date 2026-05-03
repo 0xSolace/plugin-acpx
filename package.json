@@ -1,5 +1,5 @@
 {
-  "name": "@elizaos/plugin-acpx",
+  "name": "@miladyai/plugin-acpx",
   "version": "0.1.0-rc.1",
   "description": "ACPX-based coding agent orchestration plugin for ElizaOS",
   "type": "module",
@@ -38,7 +38,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elizaos-plugins/plugin-acpx.git"
+    "url": "git+https://github.com/miladyai/plugin-acpx.git"
   },
   "author": "@stwd / 0xSolace",
   "license": "MIT",

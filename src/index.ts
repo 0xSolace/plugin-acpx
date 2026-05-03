@@ -9,7 +9,7 @@ import { availableAgentsProvider } from "./providers/available-agents.js";
 import { AcpService } from "./services/acp-service.js";
 
 export const acpPlugin: Plugin = {
-  name: "@elizaos/plugin-acpx",
+  name: "@miladyai/plugin-acpx",
   description: "ACP-based coding agent orchestration",
   actions: [
     createTaskAction,
