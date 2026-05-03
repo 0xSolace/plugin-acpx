@@ -493,7 +493,12 @@ export class AcpService {
     let finalText = currentFinalText;
     let stopReason: string | undefined;
 
-    if (sessionId && (method === "session_started" || params?.sessionUpdate === "session_started")) {
+    // Real ACP wraps session/update payload under params.update.{sessionUpdate,...}
+    // Some adapters put fields at params.* directly. Look in both places.
+    const updateBlock = asRecord(params?.update) ?? params;
+    const sessionUpdate = updateBlock?.sessionUpdate ?? params?.sessionUpdate;
+
+    if (sessionId && (method === "session_started" || sessionUpdate === "session_started")) {
       this.emitSessionEvent(sessionId, "ready", { event });
     }
 
@@ -505,18 +510,35 @@ export class AcpService {
     }
 
     if (sessionId && method === "session/update") {
-      const update = params?.sessionUpdate;
-      const content = asRecord(params?.content);
-      if (content?.type === "text" && typeof content.text === "string") {
+      // agent_message_chunk: content.text streams
+      const content = asRecord(updateBlock?.content);
+      if (sessionUpdate === "agent_message_chunk" && content?.type === "text" && typeof content.text === "string") {
         finalText += content.text;
         this.appendOutput(sessionId, content.text);
         this.emitSessionEvent(sessionId, "message", { text: content.text });
       }
-      const toolCall = (asRecord(params?.toolCall) ?? asRecord(params?.tool_call) ?? asRecord(params?.content)) as AcpToolCall | undefined;
-      if ((update === "tool_call" || update === "tool_call_update") && toolCall?.status === "running") {
-        this.emitSessionEvent(sessionId, "tool_running", { toolCall });
-        void this.store.updateStatus(sessionId, "tool_running").catch(() => undefined);
+      // Legacy/other adapters may put text directly at content level (no agent_message_chunk wrapper)
+      else if (!sessionUpdate && content?.type === "text" && typeof content.text === "string") {
+        finalText += content.text;
+        this.appendOutput(sessionId, content.text);
+        this.emitSessionEvent(sessionId, "message", { text: content.text });
       }
+      // tool_call: emit tool_running while in_progress; ignore in_progress -> failed/completed transitions don't need re-emit
+      if (sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update") {
+        const status = stringifyMaybe(updateBlock?.status);
+        const toolCall: AcpToolCall = {
+          id: stringifyMaybe(updateBlock?.toolCallId ?? updateBlock?.id) ?? "",
+          title: stringifyMaybe(updateBlock?.title) ?? "",
+          status: (status as AcpToolCall["status"]) ?? "running",
+          output: stringifyMaybe(updateBlock?.rawOutput),
+        };
+        if (status === "in_progress" || status === "running") {
+          this.emitSessionEvent(sessionId, "tool_running", { toolCall });
+          void this.store.updateStatus(sessionId, "tool_running").catch(() => undefined);
+        }
+      }
+      // usage_update is informational; we don't currently surface it but could log
+      // available_commands_update is metadata; ignore for now
     }
 
     if (sessionId && result && typeof result.stopReason === "string") {
