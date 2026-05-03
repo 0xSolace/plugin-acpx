@@ -1,11 +1,11 @@
-# @miladyai/plugin-acpx
+# @stwd/plugin-acpx
 
-[![npm version](https://img.shields.io/npm/v/@miladyai/plugin-acpx.svg)](https://www.npmjs.com/package/@miladyai/plugin-acpx)
-[![license](https://img.shields.io/npm/l/@miladyai/plugin-acpx.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@stwd/plugin-acpx.svg)](https://www.npmjs.com/package/@stwd/plugin-acpx)
+[![license](https://img.shields.io/npm/l/@stwd/plugin-acpx.svg)](./LICENSE)
 
 An **acpx-backed task and subagent plugin** for ElizaOS. It wraps the [`acpx`](https://github.com/0xouroboros/acp) CLI to spawn local coding agents (codex, claude, gemini, ...) as background sessions and exposes them through ElizaOS actions. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured Agent Client Protocol (ACP) events under the hood instead of PTY scraping.
 
-> Naming: this plugin is *not* the same thing as `@elizaos/plugin-acp`. That package is Shaw's ACP gateway client (IDE bridge over a remote ACP gateway). `@miladyai/plugin-acpx` is the *task backend* that uses `acpx` to run coding agents as subprocesses on the same host as the runtime.
+> Naming: this plugin is *not* the same thing as `@elizaos/plugin-acp`. That package is Shaw's ACP gateway client (IDE bridge over a remote ACP gateway). `@stwd/plugin-acpx` is the *task backend* that uses `acpx` to run coding agents as subprocesses on the same host as the runtime.
 
 ## Why
 
@@ -25,7 +25,7 @@ The plugin keeps the same action names so existing flows continue to work.
 ## Installation
 
 ```bash
-npm install @miladyai/plugin-acpx
+npm install @stwd/plugin-acpx
 npm install -g acpx@latest
 acpx --version
 ```
@@ -35,7 +35,7 @@ You also need at least one ACP-compatible agent CLI installed (`codex`, `claude`
 ## Quick start
 
 ```ts
-import acpPlugin from "@miladyai/plugin-acpx";
+import acpPlugin from "@stwd/plugin-acpx";
 
 export default {
   plugins: [acpPlugin],
@@ -75,7 +75,7 @@ Once loaded, the plugin registers `AcpxSubprocessService` (`AcpService` for shor
 `AcpxSubprocessService` (exported as `AcpService` for short) is the core. It wraps acpx subprocess lifecycle, NDJSON parsing, session state, and event emission.
 
 ```ts
-import { AcpService } from "@miladyai/plugin-acpx";
+import { AcpService } from "@stwd/plugin-acpx";
 
 const acp = runtime.getService("PTY_SERVICE") as AcpService;
 // or: runtime.getService("ACP_SERVICE") as AcpService;
