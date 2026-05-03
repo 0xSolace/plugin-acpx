@@ -1,0 +1,58 @@
+{
+  "name": "@elizaos/plugin-acp",
+  "version": "0.1.0-rc.1",
+  "description": "ACP-based coding agent orchestration plugin for ElizaOS",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "package.json"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run --config ./vitest.config.ts",
+    "test:watch": "vitest --config ./vitest.config.ts",
+    "typecheck": "tsc --noEmit",
+    "format": "biome format --write .",
+    "lint": "biome check ."
+  },
+  "keywords": [
+    "elizaos",
+    "plugin",
+    "acp",
+    "agent-client-protocol",
+    "coding-agent",
+    "milady"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elizaos-plugins/plugin-acp.git"
+  },
+  "author": "@stwd / 0xSolace",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependencies": {
+    "@elizaos/core": "*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.2.0",
+    "@elizaos/core": "*",
+    "@types/node": "^25.2.3",
+    "typescript": "^6.0.0",
+    "vitest": "^4.0.0"
+  }
+}
