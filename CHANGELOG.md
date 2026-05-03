@@ -2,7 +2,7 @@
 
 ## 0.1.0-rc.1 (unreleased)
 
-- Bootstrap package scaffold for `@elizaos/plugin-acpx`.
+- Bootstrap package scaffold for `@miladyai/plugin-acpx`.
 - Add TypeScript, Vitest, and Biome project setup.
 - Add ElizaOS plugin export skeleton.
 - Add stub services for ACPX subprocess orchestration and session persistence.
