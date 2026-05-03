@@ -43,7 +43,7 @@ type RunOptions = {
   agentType: AgentType;
   workdir: string;
   args: string[];
-  env?: Record<string, string>;
+  env?: Record<string, string | undefined>;
   promptPreview?: string;
   promptLength?: number;
   timeoutMs?: number;
@@ -578,8 +578,8 @@ export class AcpService {
   }
 
   private buildEnv(
-    extra?: Record<string, string>,
-    customCredentials?: Record<string, string>,
+    extra?: Record<string, string | undefined>,
+    customCredentials?: Record<string, string | undefined>,
     model?: string,
     agentType?: AgentType,
   ): NodeJS.ProcessEnv {
@@ -589,8 +589,12 @@ export class AcpService {
       if (DENY_ENV_PATTERNS.some((pattern) => pattern.test(key))) continue;
       if (shouldForwardEnv(key)) env[key] = value;
     }
-    for (const [key, value] of Object.entries(customCredentials ?? {})) env[key] = value;
-    for (const [key, value] of Object.entries(extra ?? {})) env[key] = value;
+    for (const [key, value] of Object.entries(customCredentials ?? {})) {
+      if (typeof value === "string") env[key] = value;
+    }
+    for (const [key, value] of Object.entries(extra ?? {})) {
+      if (typeof value === "string") env[key] = value;
+    }
     if (model) {
       env.OPENAI_MODEL = model;
       if (agentType === "claude") env.ANTHROPIC_MODEL = model;

@@ -163,11 +163,16 @@ export interface AcpJsonRpcResponse extends AcpJsonRpcBase {
   error?: { code?: number; message?: string; data?: unknown };
 }
 
-export type AcpJsonRpcMessage =
-  | AcpJsonRpcRequest
-  | AcpJsonRpcNotification
-  | AcpJsonRpcResponse
-  | Record<string, unknown>;
+export interface AcpJsonRpcAnyMessage extends AcpJsonRpcBase {
+  id?: string | number;
+  method?: string;
+  params?: unknown;
+  result?: unknown;
+  error?: { code?: number; message?: string; data?: unknown };
+  [k: string]: unknown;
+}
+
+export type AcpJsonRpcMessage = AcpJsonRpcAnyMessage;
 
 export interface AcpToolCall {
   id?: string;
