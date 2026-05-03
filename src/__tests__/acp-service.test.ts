@@ -45,28 +45,43 @@ function proc(): MockProc {
   return p;
 }
 
-function nextProc(): MockProc {
+// Each spawn registration includes a deferred that resolves when spawn() is
+// actually invoked. Tests await the deferred before emitting stdout/close —
+// guarantees stream listeners have already been attached.
+interface ProcRegistration {
+  proc: MockProc;
+  spawned: Promise<void>;
+}
+
+function nextProc(): ProcRegistration {
   const p = proc();
-  spawnMock.mockReturnValueOnce(p as never);
-  return p;
+  let resolveSpawned: () => void = () => undefined;
+  const spawned = new Promise<void>((resolve) => {
+    resolveSpawned = resolve;
+  });
+  spawnMock.mockImplementationOnce(((..._args: unknown[]) => {
+    // resolve on next microtask so the synchronous listener-attach inside
+    // runAcpx (proc.stdout.on("data", ...), proc.on("close", ...)) completes
+    // before the test fires emits.
+    queueMicrotask(resolveSpawned);
+    return p;
+  }) as never);
+  return { proc: p, spawned };
 }
 
-// Wait for spawn() to actually be called. spawnSession has pre-spawn awaits
-// (mkdir, store.create) so emits on the proc EventEmitter would otherwise be
-// dropped before listeners attach.
-async function waitForSpawn(prevCallCount = 0): Promise<void> {
-  for (let i = 0; i < 50; i++) {
-    if (spawnMock.mock.calls.length > prevCallCount) {
-      // give the caller's data/close listeners a tick to attach
-      await new Promise((resolve) => setImmediate(resolve));
-      return;
-    }
-    await new Promise((resolve) => setImmediate(resolve));
-  }
-  throw new Error(`waitForSpawn: spawn never called (count still ${spawnMock.mock.calls.length})`);
+async function waitForSpawn(reg: ProcRegistration, timeoutMs = 4000): Promise<void> {
+  await Promise.race([
+    reg.spawned,
+    new Promise<void>((_, reject) => {
+      setTimeout(() => reject(new Error(`waitForSpawn: spawn never invoked within ${timeoutMs}ms`)), timeoutMs).unref?.();
+    }),
+  ]);
+  // give listener-attach a microtask
+  await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-function closeOk(p: MockProc) {
+function closeOk(reg: ProcRegistration | MockProc) {
+  const p = "proc" in (reg as ProcRegistration) ? (reg as ProcRegistration).proc : (reg as MockProc);
   // close on next tick so any sync-emitted data above is flushed first
   setImmediate(() => p.emit("close", 0, null));
 }
@@ -81,16 +96,16 @@ afterEach(() => {
 
 describe("AcpService", () => {
   it("spawns a session, emits ready, and stores the session", async () => {
-    const p = nextProc();
+    const reg = nextProc();
     const service = new AcpService(runtime());
     const events: Array<[string, string, unknown]> = [];
     service.onSessionEvent((sid, event, data) => events.push([sid, event, data]));
     await service.start();
 
     const promise = service.spawnSession({ name: "s1", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
-    p.stdout.emit("data", Buffer.from('{"jsonrpc":"2.0","method":"session_started","params":{"sessionId":"s1"}}\n'));
-    closeOk(p);
+    await waitForSpawn(reg);
+    reg.proc.stdout.emit("data", Buffer.from('{"jsonrpc":"2.0","method":"session_started","params":{"sessionId":"s1"}}\n'));
+    closeOk(reg);
     const result = await promise;
 
     expect(result.name).toBe("s1");
@@ -111,19 +126,18 @@ describe("AcpService", () => {
     service.onSessionEvent((_sid, event) => events.push(event));
     await service.start();
     const spawned = service.spawnSession({ name: "s2", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
+    await waitForSpawn(create);
     closeOk(create);
     const { sessionId } = await spawned;
 
     const prompt = nextProc();
-    const prevCount = spawnMock.mock.calls.length;
     const sent = service.sendPrompt(sessionId, "do the thing");
-    await waitForSpawn(prevCount);
+    await waitForSpawn(prompt);
     // Real ACP wraps under params.update.{...}; service handles both.
-    prompt.stdout.emit("data", Buffer.from('{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"'));
-    prompt.stdout.emit("data", Buffer.from(`${sessionId}","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"done"}}}}\n`));
-    prompt.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"${sessionId}","update":{"sessionUpdate":"tool_call","toolCallId":"t1","status":"in_progress","title":"Running tool"}}}\n`));
-    prompt.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","id":"req-1","result":{"stopReason":"end_turn"},"sessionId":"${sessionId}"}\n`));
+    prompt.proc.stdout.emit("data", Buffer.from('{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"'));
+    prompt.proc.stdout.emit("data", Buffer.from(`${sessionId}","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"done"}}}}\n`));
+    prompt.proc.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"${sessionId}","update":{"sessionUpdate":"tool_call","toolCallId":"t1","status":"in_progress","title":"Running tool"}}}\n`));
+    prompt.proc.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","id":"req-1","result":{"stopReason":"end_turn"},"sessionId":"${sessionId}"}\n`));
     closeOk(prompt);
 
     const result = await sent;
@@ -138,20 +152,19 @@ describe("AcpService", () => {
     const service = new AcpService(runtime());
     await service.start();
     const spawned = service.spawnSession({ name: "s3", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
+    await waitForSpawn(create);
     closeOk(create);
     const { sessionId } = await spawned;
 
     const prompt = nextProc();
-    const prevCount = spawnMock.mock.calls.length;
     void service.sendPrompt(sessionId, "long running").catch(() => undefined);
-    await waitForSpawn(prevCount);
+    await waitForSpawn(prompt);
     void service.cancelSession(sessionId).catch(() => undefined);
     // give cancelSession a tick to call kill
     await new Promise((resolve) => setImmediate(resolve));
 
-    expect(prompt.kill).toHaveBeenCalledWith("SIGTERM");
-    prompt.emit("close", 130, "SIGTERM");
+    expect(prompt.proc.kill).toHaveBeenCalledWith("SIGTERM");
+    prompt.proc.emit("close", 130, "SIGTERM");
   });
 
   it("ignores malformed NDJSON without crashing", async () => {
@@ -160,8 +173,8 @@ describe("AcpService", () => {
     const service = new AcpService(rt as never);
     await service.start();
     const promise = service.spawnSession({ name: "bad-json", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
-    create.stdout.emit("data", Buffer.from("not-json\n"));
+    await waitForSpawn(create);
+    create.proc.stdout.emit("data", Buffer.from("not-json\n"));
     closeOk(create);
     await expect(promise).resolves.toMatchObject({ name: "bad-json" });
     expect(rt.logger.warn).toHaveBeenCalled();
@@ -174,15 +187,14 @@ describe("AcpService", () => {
     service.onSessionEvent((_sid, event) => events.push(event));
     await service.start();
     const spawned = service.spawnSession({ name: "partial", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
+    await waitForSpawn(create);
     closeOk(create);
     const { sessionId } = await spawned;
     const prompt = nextProc();
-    const prevCount = spawnMock.mock.calls.length;
     const sent = service.sendPrompt(sessionId, "hi");
-    await waitForSpawn(prevCount);
-    prompt.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"${sessionId}","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"hel`));
-    prompt.stdout.emit("data", Buffer.from(`lo"}}}}\n{"jsonrpc":"2.0","id":"req","result":{"stopReason":"end_turn"},"sessionId":"${sessionId}"}\n`));
+    await waitForSpawn(prompt);
+    prompt.proc.stdout.emit("data", Buffer.from(`{"jsonrpc":"2.0","method":"session/update","params":{"sessionId":"${sessionId}","update":{"sessionUpdate":"agent_message_chunk","content":{"type":"text","text":"hel`));
+    prompt.proc.stdout.emit("data", Buffer.from(`lo"}}}}\n{"jsonrpc":"2.0","id":"req","result":{"stopReason":"end_turn"},"sessionId":"${sessionId}"}\n`));
     closeOk(prompt);
     const result = await sent;
     expect(result.response).toBe("hello");
@@ -198,16 +210,15 @@ describe("AcpService", () => {
     });
     await service.start();
     const spawned = service.spawnSession({ name: "auth", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
+    await waitForSpawn(create);
     closeOk(create);
     const { sessionId } = await spawned;
 
     const prompt = nextProc();
-    const prevCount = spawnMock.mock.calls.length;
     const sent = service.sendPrompt(sessionId, "hi");
-    await waitForSpawn(prevCount);
-    prompt.stderr.emit("data", Buffer.from("401 unauthorized authenticate failed"));
-    setImmediate(() => prompt.emit("close", 1, null));
+    await waitForSpawn(prompt);
+    prompt.proc.stderr.emit("data", Buffer.from("401 unauthorized authenticate failed"));
+    setImmediate(() => prompt.proc.emit("close", 1, null));
     await sent;
     expect(errors).toEqual(expect.arrayContaining([expect.objectContaining({ failureKind: "auth" })]));
   });
@@ -217,7 +228,7 @@ describe("AcpService", () => {
     const service = new AcpService(runtime());
     await service.start();
     const spawned = service.spawnSession({ name: "reattach", agentType: "codex", workdir: "/tmp/acp-test" });
-    await waitForSpawn();
+    await waitForSpawn(create);
     closeOk(create);
     const { sessionId } = await spawned;
     const session = service.getSession(sessionId);
@@ -225,9 +236,8 @@ describe("AcpService", () => {
     await (service as unknown as { store: { update: (id: string, patch: unknown) => Promise<void> } }).store.update(sessionId, { pid: 999999 });
 
     const respawnProc = nextProc();
-    const prevCount = spawnMock.mock.calls.length;
     const reattached = service.reattachSession(sessionId);
-    await waitForSpawn(prevCount);
+    await waitForSpawn(respawnProc);
     closeOk(respawnProc);
     const result = await reattached;
     expect(result.sessionId).not.toBe(sessionId);
