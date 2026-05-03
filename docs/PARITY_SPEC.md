@@ -1,5 +1,5 @@
 # PARITY_SPEC.md
-Canonical parity specification for making `@elizaos/plugin-acp` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
+Canonical parity specification for making `@elizaos/plugin-acpx` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
 Source baseline:
 - `.research/plugin-agent-orchestrator-README.md`
 - `.research/plugin-agent-orchestrator-package.json`
@@ -18,7 +18,7 @@ Line references cite the research mirror under `.research/plugin-agent-orchestra
 ---
 ## 1. Compatibility goal statement
 ### 1.1 Goal
-`@elizaos/plugin-acp` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
+`@elizaos/plugin-acpx` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
 Drop-in compatible means:
 1. A runtime action lookup by canonical name finds the expected action.
 2. Legacy aliases in `similes` continue to route to the same behavior.
@@ -44,9 +44,9 @@ Source references:
 - `index.ts` exports compatibility aliases in lines 79 to 82 and action re-exports in lines 97 to 117.
 - Nyx's real consumer looks up `CREATE_TASK`, `PTY_SERVICE`, and `onSessionEvent` in `.research/nyx-spawn-codex/spawn_codex.js` lines 83 to 90 and 117 to 150.
 ### 1.2 Side-by-side loading
-`@elizaos/plugin-acp` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
+`@elizaos/plugin-acpx` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
 Side-by-side requirement:
-1. Plugin name must be distinct, for example `@elizaos/plugin-acp`.
+1. Plugin name must be distinct, for example `@elizaos/plugin-acpx`.
 2. Canonical action names overlap by design. Eliza runtimes that allow duplicate action names may use load order to choose. Tests must cover runtime lookup by name.
 3. Services should avoid clobbering orchestrator internals unless compatibility mode is explicitly enabled.
 4. To satisfy third-party consumers, ACP must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
