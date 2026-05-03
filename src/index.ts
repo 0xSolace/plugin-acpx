@@ -9,7 +9,7 @@ import { availableAgentsProvider } from "./providers/available-agents.js";
 import { AcpService } from "./services/acp-service.js";
 
 export const acpPlugin: Plugin = {
-  name: "@miladyai/plugin-acpx",
+  name: "@stwd/plugin-acpx",
   description: "acpx-backed task and subagent plugin for ElizaOS",
   actions: [
     createTaskAction,

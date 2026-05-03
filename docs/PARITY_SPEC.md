@@ -1,5 +1,5 @@
 # PARITY_SPEC.md
-Canonical parity specification for making `@miladyai/plugin-acpx` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
+Canonical parity specification for making `@stwd/plugin-acpx` third-party compatible with the action surface of `@elizaos/plugin-agent-orchestrator`.
 Source baseline:
 - `.research/plugin-agent-orchestrator-README.md`
 - `.research/plugin-agent-orchestrator-package.json`
@@ -18,7 +18,7 @@ Line references cite the research mirror under `.research/plugin-agent-orchestra
 ---
 ## 1. Compatibility goal statement
 ### 1.1 Goal
-`@miladyai/plugin-acpx` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
+`@stwd/plugin-acpx` must expose a task-agent action surface that is drop-in compatible with the parts of `@elizaos/plugin-agent-orchestrator` used by third-party callers.
 Drop-in compatible means:
 1. A runtime action lookup by canonical name finds the expected action.
 2. Legacy aliases in `similes` continue to route to the same behavior.
@@ -44,9 +44,9 @@ Source references:
 - `index.ts` exports compatibility aliases in lines 79 to 82 and action re-exports in lines 97 to 117.
 - Nyx's real consumer looks up `CREATE_TASK`, `PTY_SERVICE`, and `onSessionEvent` in `.research/nyx-spawn-codex/spawn_codex.js` lines 83 to 90 and 117 to 150.
 ### 1.2 Side-by-side loading
-`@miladyai/plugin-acpx` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
+`@stwd/plugin-acpx` may be loaded side-by-side with `@elizaos/plugin-agent-orchestrator` during migration.
 Side-by-side requirement:
-1. Plugin name must be distinct, for example `@miladyai/plugin-acpx`.
+1. Plugin name must be distinct, for example `@stwd/plugin-acpx`.
 2. Canonical action names overlap by design. Eliza runtimes that allow duplicate action names may use load order to choose. Tests must cover runtime lookup by name.
 3. Services should avoid clobbering orchestrator internals unless compatibility mode is explicitly enabled.
 4. To satisfy third-party consumers, ACP must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
@@ -128,7 +128,7 @@ Source references:
 - `CREATE_TASK` extracts params and content in `start-coding-task.ts` lines 443 to 445.
 Common service requirement:
 - Orchestrator validates by checking `runtime.getService("PTY_SERVICE")` for most actions.
-- `@miladyai/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
+- `@stwd/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
 Common access policy:
 - Orchestrator calls `requireTaskAgentAccess(runtime, message, "create")` for create/spawn and `"interact"` for list/send/stop/control.
 - ACP can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
@@ -1531,7 +1531,7 @@ Assert:
 - `stopSession()` emits `stopped`.
 ### 9.5 Integration tests for Nyx contract
 Port `.research/nyx-spawn-codex/spawn_codex.js` behavior into tests:
-1. Build runtime with `@miladyai/plugin-acpx` only.
+1. Build runtime with `@stwd/plugin-acpx` only.
 2. Find `CREATE_TASK` by name.
 3. Find `PTY_SERVICE`.
 4. Invoke handler with synthetic message:
@@ -1553,7 +1553,7 @@ If `ELIZA_ACP_CLI` is configured:
 - `STOP_AGENT` cleans up
 Skip when CLI not available.
 ### 9.7 E2E tests
-Create an Eliza runtime with `@miladyai/plugin-acpx`.
+Create an Eliza runtime with `@stwd/plugin-acpx`.
 Scenarios:
 1. User asks a multi-step coding/research task. Planner calls `CREATE_TASK`. No duplicate post-action continuation.
 2. User asks to send follow-up to the running agent. Planner calls `SEND_TO_AGENT`.
