@@ -36,7 +36,7 @@ export const listAgentsAction: Action = {
     }
 
     const sessions = await listSessionsWithin(service, 2000);
-    const preferredTaskAgent = { id: String(await service.resolveAgentType?.({}) ?? "codex"), reason: "ACP default agent" };
+    const preferredTaskAgent = { id: String(await service.resolveAgentType?.({}) ?? "codex"), reason: "acpx default agent" };
     const tasks: Array<Record<string, unknown>> = [];
     const pendingConfirmations = 0;
 

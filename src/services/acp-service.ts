@@ -267,7 +267,7 @@ export class AcpService {
       return promptResult;
     }
 
-    const message = promptResult.error ?? `ACP prompt failed with stopReason ${stopReason}`;
+    const message = promptResult.error ?? `acpx prompt failed with stopReason ${stopReason}`;
     await this.store.updateStatus(sessionId, "error", message);
     this.emitSessionEvent(sessionId, "error", {
       message,
@@ -374,7 +374,7 @@ export class AcpService {
   }
 
   async sendKeysToSession(): Promise<void> {
-    // TODO(W4): clarify with W6 how key events should map onto non-PTY ACP sessions.
+    // TODO(W4): clarify with W6 how key events should map onto non-PTY acpx sessions.
   }
 
   async stopSession(sessionId: string): Promise<void> {
@@ -440,7 +440,7 @@ export class AcpService {
       proc.on("error", (err: NodeJS.ErrnoException) => {
         record.stderr = capStderr(record.stderr + errorMessage(err));
         if (err.code === "ENOENT") {
-          const message = `ACP CLI not found at ${this.cliPath}. Set ELIZA_ACP_CLI or npm install -g acpx@latest.`;
+          const message = `acpx CLI not found at ${this.cliPath}. Set ELIZA_ACP_CLI or npm install -g acpx@latest.`;
           record.stderr = capStderr(`${record.stderr}\n${message}`);
           if (opts.sessionId) this.emitSessionEvent(opts.sessionId, "error", { message, failureKind: "not_found" });
         }
@@ -484,7 +484,7 @@ export class AcpService {
     try {
       return JSON.parse(line) as AcpJsonRpcMessage;
     } catch {
-      this.log("warn", "malformed ACP NDJSON line ignored", { sessionId, line: line.slice(0, 200) });
+      this.log("warn", "malformed acpx NDJSON line ignored", { sessionId, line: line.slice(0, 200) });
       return null;
     }
   }
@@ -560,7 +560,7 @@ export class AcpService {
           stopReason,
         });
       } else if (stopReason === "error") {
-        this.emitSessionEvent(sessionId, "error", { message: "ACP prompt ended with stopReason error", stopReason });
+        this.emitSessionEvent(sessionId, "error", { message: "acpx prompt ended with stopReason error", stopReason });
       }
     }
 
@@ -584,14 +584,14 @@ export class AcpService {
 
   private async requireSession(sessionId: string): Promise<SessionInfo> {
     const session = await this.store.get(sessionId);
-    if (!session) throw new Error(`ACP session not found: ${sessionId}`);
+    if (!session) throw new Error(`acpx session not found: ${sessionId}`);
     return session;
   }
 
   private async enforceSessionLimit(): Promise<void> {
     const sessions = await this.store.list();
     const active = sessions.filter((s) => !["stopped", "error", "errored", "completed"].includes(s.status));
-    if (active.length >= this.maxSessions) throw new Error(`ACP max session limit reached (${this.maxSessions})`);
+    if (active.length >= this.maxSessions) throw new Error(`acpx max session limit reached (${this.maxSessions})`);
   }
 
   private async stopTrackedProcess(sessionId: string): Promise<void> {
@@ -636,12 +636,12 @@ export class AcpService {
   }
 
   private classifyExitError(code: number | null, stderr: string): string {
-    if (code === 1 && isAuthText(stderr)) return "ACP auth failed. Re-authenticate the selected agent or set ACPX_AUTH_* credentials.";
-    if (code === 4) return "ACP session was not found. This is likely an internal session bookkeeping error.";
-    if (code === 5) return "ACP permission denied.";
-    if (code === 3) return "ACP prompt timed out.";
+    if (code === 1 && isAuthText(stderr)) return "acpx auth failed. Re-authenticate the selected agent or set ACPX_AUTH_* credentials.";
+    if (code === 4) return "acpx session was not found. This is likely an internal session bookkeeping error.";
+    if (code === 5) return "acpx permission denied.";
+    if (code === 3) return "acpx prompt timed out.";
     if (stderr.trim()) return stderr.trim().slice(0, 500);
-    return `ACP subprocess exited with code ${code ?? "unknown"}`;
+    return `acpx subprocess exited with code ${code ?? "unknown"}`;
   }
 
   private lastOutput(sessionId: string): string {

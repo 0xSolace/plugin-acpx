@@ -90,7 +90,7 @@ export const spawnAgentAction = {
       });
 
       setCurrentSession(state, session);
-      logger(runtime).info?.("Spawned ACP task agent", { sessionId: session.sessionId, agentType: session.agentType, workdir: session.workdir });
+      logger(runtime).info?.("Spawned acpx task agent", { sessionId: session.sessionId, agentType: session.agentType, workdir: session.workdir });
 
       return {
         success: true,

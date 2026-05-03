@@ -3,14 +3,14 @@ import { getAcpService, labelFor, listSessionsWithin, shortId } from "../actions
 
 export const availableAgentsProvider: Provider = {
   name: "AVAILABLE_AGENTS",
-  description: "Live status of available ACP task-agent adapters and active sessions.",
+  description: "Live status of available acpx task-agent adapters and active sessions.",
   dynamic: true,
   position: 1,
   relevanceKeywords: ["agent", "task", "coding", "session", "acp"],
   get: async (runtime: IAgentRuntime, _message: Memory, _state: State) => {
     const service = getAcpService(runtime);
     if (!service) {
-      const text = "# ACP Task Agents\nACP task-agent service is not available.";
+      const text = "# acpx task agents\n@stwd/plugin-acpx task-agent service is not available.";
       return { text, values: { availableAgents: text }, data: { agents: [], activeSessions: [], serviceAvailable: false } };
     }
 
@@ -19,7 +19,7 @@ export const availableAgentsProvider: Provider = {
       listSessionsWithin(service, 2000),
     ]);
 
-    const lines = ["# ACP Task Agents"];
+    const lines = ["# acpx task agents"];
     if (agents.length > 0) {
       lines.push("", "## Available adapters");
       for (const agent of agents) {
@@ -27,7 +27,7 @@ export const availableAgentsProvider: Provider = {
         lines.push(`- ${agent.agentType ?? agent.adapter}: ${agent.installed ? "installed" : "not installed"}${auth}`);
       }
     } else {
-      lines.push("No adapter inventory available. Defaulting to ACP runtime selection.");
+      lines.push("No adapter inventory available. Defaulting to acpx runtime selection.");
     }
 
     if (sessions.length > 0) {

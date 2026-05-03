@@ -49,14 +49,14 @@ Side-by-side requirement:
 1. Plugin name must be distinct, for example `@stwd/plugin-acpx`.
 2. Canonical action names overlap by design. Eliza runtimes that allow duplicate action names may use load order to choose. Tests must cover runtime lookup by name.
 3. Services should avoid clobbering orchestrator internals unless compatibility mode is explicitly enabled.
-4. To satisfy third-party consumers, ACP must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
-5. ACP may additionally provide `ACP_SUBPROCESS_SERVICE`, but external compatibility requires the `PTY_SERVICE`-compatible method surface.
+4. To satisfy third-party consumers, @stwd/plugin-acpx must provide at least one service discoverable as `PTY_SERVICE` or a documented alias/facade that W6 uses to wire action handlers.
+5. @stwd/plugin-acpx may additionally provide `ACP_SUBPROCESS_SERVICE`, but external compatibility requires the `PTY_SERVICE`-compatible method surface.
 Recommendation:
 - Register `AcpxSubprocessService` under `ACP_SUBPROCESS_SERVICE` as the primary service.
 - Register or expose a thin `PTY_SERVICE` facade that delegates to it when no existing `PTY_SERVICE` is present.
-- If another plugin already registered `PTY_SERVICE`, do not replace it by default. Log a warning and keep ACP action handlers using `ACP_SUBPROCESS_SERVICE` directly. For Nyx compatibility, deployments that swap imports must not load orchestrator simultaneously.
+- If another plugin already registered `PTY_SERVICE`, do not replace it by default. Log a warning and keep @stwd/plugin-acpx action handlers using `ACP_SUBPROCESS_SERVICE` directly. For Nyx compatibility, deployments that swap imports must not load orchestrator simultaneously.
 ### 1.3 Deliberate non-goals
-ACP is not required to replicate the full Milady orchestrator product.
+@stwd/plugin-acpx is not required to replicate the full Milady orchestrator product.
 Do not match:
 1. Git workspace provisioning actions, except for minimal workdir/scratch behavior required by `CREATE_TASK`.
 2. `PROVISION_WORKSPACE` and `FINALIZE_WORKSPACE` action behavior.
@@ -68,7 +68,7 @@ Do not match:
 8. Structured proof bridge for app/plugin sentinels.
 9. Task history, task share, issue management, and frontend API routes.
 ### 1.4 Compatible but cleaner alternatives
-Some orchestrator behavior is intentionally ugly or product-specific. ACP should mirror third-party contracts, not every implementation wart.
+Some orchestrator behavior is intentionally ugly or product-specific. @stwd/plugin-acpx should mirror third-party contracts, not every implementation wart.
 Keep these contracts:
 - `CREATE_TASK` returns `{ data: { agents: [...] } }` with `sessionId`, `agentType`, `workdir`, `label`, and `status`.
 - `onSessionEvent` emits `task_complete` with `{ response }`, `stopped`, and `error` with `{ message }`.
@@ -76,10 +76,10 @@ Keep these contracts:
 Clean alternatives:
 - Replace the heavy SwarmCoordinator with a compact session store plus event emitter.
 - Replace subscription-aware auto-picking with deterministic env defaults.
-- Replace workspace service dependencies with ACP-managed scratch directories.
+- Replace workspace service dependencies with @stwd/plugin-acpx-managed scratch directories.
 - Implement `CANCEL_TASK` as a clean canonical action instead of relying on `TASK_CONTROL` or `STOP_AGENT` naming ambiguity.
 ### 1.5 TODO verification markers
-This spec uses `**TODO verify**` only where source behavior was not fully explicit or where ACP must make a choice because orchestrator has no exact action.
+This spec uses `**TODO verify**` only where source behavior was not fully explicit or where @stwd/plugin-acpx must make a choice because orchestrator has no exact action.
 ---
 ## 2. Action specs
 All six actions must be registered on the plugin:
@@ -131,7 +131,7 @@ Common service requirement:
 - `@stwd/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
 Common access policy:
 - Orchestrator calls `requireTaskAgentAccess(runtime, message, "create")` for create/spawn and `"interact"` for list/send/stop/control.
-- ACP can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
+- @stwd/plugin-acpx can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
 ---
 ### 2.2 `SPAWN_AGENT`
 #### 2.2.1 Name
@@ -171,7 +171,7 @@ Rationale:
 - A non-empty continuation can trigger duplicate spawns.
 Source: `spawn-agent.ts` lines 131 to 139.
 #### 2.2.5 Input schema
-Parameters ACP must accept:
+Parameters @stwd/plugin-acpx must accept:
 ```ts
 parameters: [
   { name: "agentType", required: false, schema: { type: "string" } },
@@ -189,7 +189,7 @@ Orchestrator reads these dynamically:
 - `memoryContent`: `spawn-agent.ts` lines 381 to 382.
 - `approvalPreset`: `spawn-agent.ts` lines 383 to 384 and 531 to 533.
 - `keepAliveAfterComplete`: `spawn-agent.ts` lines 385 to 387 and 520.
-ACP addition:
+@stwd/plugin-acpx addition:
 - Declare the parameter metadata explicitly so action documentation is complete.
 #### 2.2.6 Validation rules
 Return `false` if service is unavailable.
@@ -204,8 +204,8 @@ Source:
 - Explicit payload check: `spawn-agent.ts` lines 87 to 100 and 186 to 188.
 - Empty text behavior: `spawn-agent.ts` lines 190 to 193.
 - Task-agent text heuristic: `spawn-agent.ts` line 195.
-ACP implementation guidance:
-- If ACP does not implement `looksLikeTaskAgentRequest`, use a simple complexity regex covering code, debug, fix, implement, investigate, research, summarize, write, plan, delegate, subagent, repo, test.
+@stwd/plugin-acpx implementation guidance:
+- If @stwd/plugin-acpx does not implement `looksLikeTaskAgentRequest`, use a simple complexity regex covering code, debug, fix, implement, investigate, research, summarize, write, plan, delegate, subagent, repo, test.
 - This regex mirrors `task-agent-frameworks.ts` lines 234 to 235.
 #### 2.2.7 Handler behavior
 Ordered behavior:
@@ -217,7 +217,7 @@ Ordered behavior:
 6. Resolve agent type from explicit hint or `service.resolveAgentType({ task, workdir })`. Normalize aliases from `pty-types.ts` lines 42 to 71.
 7. Resolve workdir from explicit field, `state.codingWorkspace.path`, latest workspace, or scratch fallback. Source: `spawn-agent.ts` lines 285 to 309.
 8. Enforce sandbox if implemented. Source: `spawn-agent.ts` lines 311 to 379.
-9. Build credentials or ACP env. Orchestrator returns `INVALID_CREDENTIALS` on credential errors. Source: `spawn-agent.ts` lines 409 to 424.
+9. Build credentials or acpx env. Orchestrator returns `INVALID_CREDENTIALS` on credential errors. Source: `spawn-agent.ts` lines 409 to 424.
 10. Preflight non-shell agents. If CLI absent, callback install text and return `{ success: false, error: "AGENT_NOT_INSTALLED" }`. Source: `spawn-agent.ts` lines 426 to 442.
 11. Create a task thread if a store/coordinator exists. Source: `spawn-agent.ts` lines 445 to 467.
 12. Spawn session through service. Source: `spawn-agent.ts` lines 523 to 543.
@@ -226,7 +226,7 @@ Ordered behavior:
 15. Set `state.codingSession = session` if state exists. **TODO verify** exact source line after 620 was not re-read, but stop/send actions rely on `state.codingSession` in `send-to-agent.ts` lines 134 to 138 and `stop-agent.ts` lines 164 to 168.
 16. Return success with empty text if possible to avoid duplicate chat.
 #### 2.2.8 Output shape
-ACP must return this shape on success:
+@stwd/plugin-acpx must return this shape on success:
 ```ts
 {
   success: true,
@@ -243,7 +243,7 @@ ACP must return this shape on success:
 ```
 Compatibility note:
 - `SPAWN_AGENT` is direct-session oriented. Nyx does not consume it.
-- To make W6 simpler, ACP may also include `data.agents: [agentRecord]`, but this is required only for `CREATE_TASK`.
+- To make W6 simpler, @stwd/plugin-acpx may also include `data.agents: [agentRecord]`, but this is required only for `CREATE_TASK`.
 #### 2.2.9 HandlerCallback usage
 Use callback for:
 - Access denial reason.
@@ -316,7 +316,7 @@ Source: `send-to-agent.ts` lines 275 to 311.
 Return false if service unavailable.
 Return true only if `listSessions()` completes within 2 seconds and has at least one session.
 Source: `send-to-agent.ts` lines 70 to 94.
-ACP implementation guidance:
+@stwd/plugin-acpx implementation guidance:
 - Preserve the 2 second validation timeout so action selection does not hang.
 - W4 `listSessions()` must be fast and safe.
 #### 2.3.6 Handler behavior
@@ -465,7 +465,7 @@ Mirror orchestrator:
 ]
 ```
 Source: `stop-agent.ts` lines 26 to 34.
-ACP addition:
+@stwd/plugin-acpx addition:
 - `CANCEL_TASK` should be a separate canonical action, but `STOP_AGENT.similes` must still include `CANCEL_TASK_AGENT`.
 #### 2.5.3 Description
 Stop a running task-agent session, terminating the PTY session and cleaning up resources.
@@ -563,7 +563,7 @@ parameters: [
 ]
 ```
 Source: `start-coding-task.ts` lines 659 to 772.
-ACP must additionally accept undeclared but consumed values:
+@stwd/plugin-acpx must additionally accept undeclared but consumed values:
 ```ts
 { workdir?: string, reuseRepo?: boolean, model?: string }
 ```
@@ -600,15 +600,15 @@ High-level behavior:
 8. If `reuseRepo`, try fallback repo from coordinator or workspace service. Source: `start-coding-task.ts` lines 475 to 504.
 9. Normalize repo input if present. Source: `start-coding-task.ts` lines 506 to 508.
 10. Resolve default agent type through `service.resolveAgentType({ task, repo, subtaskCount })`. Source: `start-coding-task.ts` lines 510 to 528.
-11. Build credentials or ACP env. On failure return `INVALID_CREDENTIALS`. Source: `start-coding-task.ts` lines 530 to 560.
+11. Build credentials or acpx env. On failure return `INVALID_CREDENTIALS`. Source: `start-coding-task.ts` lines 530 to 560.
 12. Validate optional validator spec, retry count, fail behavior, and origin room id. Source: `start-coding-task.ts` lines 52 to 93 and 566 to 599.
 13. Build `CodingTaskContext`. Source: `start-coding-task.ts` lines 601 to 623.
 14. Dispatch to multi-agent handler by split user text, `agents`, or single preserved task. Source: `start-coding-task.ts` lines 625 to 657.
 #### 2.6.8 Multi-agent behavior
-ACP must mimic `handleMultiAgent` public contract, not the entire implementation.
+@stwd/plugin-acpx must mimic `handleMultiAgent` public contract, not the entire implementation.
 Required behavior:
 1. Parse `agents` by `|`, trim, filter empty. Source: `coding-task-handlers.ts` lines 669 to 679.
-2. Cap count to `MAX_CONCURRENT_AGENTS`. Source: `coding-task-handlers.ts` lines 681 to 689. **TODO verify** the actual constant value in source header if ACP wants exact cap. Recommended ACP cap: 8 to match PTY default concurrency in `pty-types.ts` lines 25 to 36.
+2. Cap count to `MAX_CONCURRENT_AGENTS`. Source: `coding-task-handlers.ts` lines 681 to 689. **TODO verify** the actual constant value in source header if @stwd/plugin-acpx wants exact cap. Recommended @stwd/plugin-acpx cap: 8 to match PTY default concurrency in `pty-types.ts` lines 25 to 36.
 3. If repo present and no workspace implementation, either return `{ success: false, error: "WORKSPACE_SERVICE_UNAVAILABLE" }` or support minimal clone/workdir behavior. Source: `coding-task-handlers.ts` lines 691 to 698.
 4. Do not emit routine `Launching N agents...` callback. Source: `coding-task-handlers.ts` lines 700 to 703.
 5. Create one task thread in W5 if store exists. Source: `coding-task-handlers.ts` lines 762 to 790.
@@ -680,15 +680,15 @@ Important:
 - launch failure through `success: false` with `data.agents` and no top-level `error`
 #### 2.6.12 Notes for W4
 W4 must expose `resolveAgentType(selection?)`.
-Minimum ACP behavior:
+Minimum @stwd/plugin-acpx behavior:
 - Explicit `agentType` wins.
 - Else `ELIZA_ACP_DEFAULT_AGENT` wins.
 - Else `PARALLAX_DEFAULT_AGENT_TYPE` compatibility value wins.
 - Else default to `codex` if `ELIZA_ACP_CLI` contains codex or `codex` exists on PATH.
-- Else first available ACP CLI.
-W4 must support per-spawn metadata and env forwarding so `model` from Nyx can be translated to ACP CLI model configuration.
+- Else first available acpx CLI.
+W4 must support per-spawn metadata and env forwarding so `model` from Nyx can be translated to acpx CLI model configuration.
 #### 2.6.13 Notes for W5
-W5 must create one durable task thread per `CREATE_TASK` call, then one task session per spawned ACP process.
+W5 must create one durable task thread per `CREATE_TASK` call, then one task session per spawned acpx process.
 Minimum durable state:
 - thread id
 - title/label
@@ -713,7 +713,7 @@ Related source behavior:
 - `STOP_AGENT` includes `CANCEL_AGENT` and `CANCEL_TASK_AGENT` aliases in `stop-agent.ts` lines 26 to 34.
 - `TASK_CONTROL` includes `STOP_TASK` and infers `stop` from the word `cancel` in `task-control.ts` lines 14 to 20, 43 to 51, and 54 to 64.
 - `TASK_CONTROL` handler stops durable task threads, not just PTY sessions, in `task-control.ts` lines 171 to 207.
-Because the user explicitly requires `CANCEL_TASK`, ACP must add it as a clean canonical compatibility action.
+Because the user explicitly requires `CANCEL_TASK`, @stwd/plugin-acpx must add it as a clean canonical compatibility action.
 #### 2.7.3 Aliases
 Recommended:
 ```ts
@@ -790,11 +790,11 @@ W4:
 W5:
 - Must resolve a thread by thread id, session id, search, or most recent active.
 - Must keep history, not delete records.
-**TODO verify** whether W6 should map `CANCEL_TASK` to a `TASK_CONTROL`-compatible export as well. The source has no `CANCEL_TASK` action, so ACP's clean action is additive.
+**TODO verify** whether W6 should map `CANCEL_TASK` to a `TASK_CONTROL`-compatible export as well. The source has no `CANCEL_TASK` action, so @stwd/plugin-acpx's clean action is additive.
 ---
 ## 3. Service interfaces
 ### 3.1 `AcpxSubprocessService` compatibility interface for W4
-ACP's service should be implementable without PTY internals but must satisfy orchestrator-compatible call sites.
+@stwd/plugin-acpx's service should be implementable without PTY internals but must satisfy orchestrator-compatible call sites.
 ```ts
 export type AcpAgentType = "claude" | "codex" | "gemini" | "aider" | "pi" | "shell" | string;
 export type AcpSessionStatus =
@@ -1060,8 +1060,8 @@ Source basis:
 - `RecordTaskTranscriptInput`: `task-registry.ts` lines 442 to 449.
 - Thread/session status normalization: `task-registry.ts` lines 715 to 743.
 ### 3.4 Status mapping
-ACP statuses must map to orchestrator strings:
-- Running ACP process maps to `running` or `active` for store, and a session status acceptable to callers.
+@stwd/plugin-acpx statuses must map to orchestrator strings:
+- Running acpx process maps to `running` or `active` for store, and a session status acceptable to callers.
 - Blocked maps to `blocked`.
 - Waiting for auth maps to `authenticating` or event `login_required`.
 - Completed response maps first to `task_complete` event, then eventual session `stopped` or `completed`.
@@ -1069,7 +1069,7 @@ ACP statuses must map to orchestrator strings:
 - User cancellation maps to `stopped` event and store `interrupted` or `canceled`.
 ---
 ## 4. Type exports from `index.ts`
-ACP should mirror the exports that third-party code is likely to import, while replacing internals with ACP equivalents.
+@stwd/plugin-acpx should mirror the exports that third-party code is likely to import, while replacing internals with acpx equivalents.
 ### 4.1 Plugin exports
 Export:
 ```ts
@@ -1108,7 +1108,7 @@ export { AcpxSubprocessService as PTYService } from "./services/acpx-subprocess-
 ```
 Reason:
 - External code may import `PTYService` from orchestrator. Orchestrator exports it in `index.ts` line 134.
-- ACP can alias `PTYService` to its compatibility facade.
+- @stwd/plugin-acpx can alias `PTYService` to its compatibility facade.
 ### 4.4 Type exports
 Mirror type names where possible:
 ```ts
@@ -1122,7 +1122,7 @@ export type {
 };
 ```
 Orchestrator exports these PTY types in `index.ts` lines 126 to 132 and defines them in `pty-types.ts` lines 18 to 136.
-Adapter types from `coding-agent-adapters` may not exist in ACP. Recommended compatibility exports:
+Adapter types from `coding-agent-adapters` may not exist in @stwd/plugin-acpx. Recommended compatibility exports:
 ```ts
 export type AdapterType = "claude" | "codex" | "gemini" | "aider";
 export type ApprovalPreset = "readonly" | "standard" | "permissive" | "autonomous";
@@ -1157,7 +1157,7 @@ Orchestrator generates a character-voice failure message with constraints:
 - 1 to 3 short sentences
 - do not claim task ran or succeeded
 Source: `coding-task-handlers.ts` lines 282 to 305.
-ACP can use deterministic text instead of an LLM:
+@stwd/plugin-acpx can use deterministic text instead of an LLM:
 ```txt
 I couldn't start the task agent: <short blocker>. Nothing ran yet.
 ```
@@ -1170,7 +1170,7 @@ Direct event handlers should not post per-agent `task_complete` messages in norm
 Source:
 - `registerSessionEvents` avoids blocked and task_complete chat messages in `coding-task-helpers.ts` lines 158 to 175.
 - The SwarmCoordinator or async streamer owns final synthesis.
-ACP event convention:
+@stwd/plugin-acpx event convention:
 - Emit `task_complete` event with `response` for in-process consumers.
 - If W6 has a chat callback path for direct sessions, callback final output only once.
 - Do not echo the original task as the final result.
@@ -1191,7 +1191,7 @@ Source: `spawn-agent.ts` lines 603 to 608.
 Task agent is waiting for input: <prompt>
 ```
 Source: `spawn-agent.ts` lines 589 to 593.
-`CREATE_TASK` should generally suppress blocked messages because auto-resolution or coordinator/ACP supervisor owns them.
+`CREATE_TASK` should generally suppress blocked messages because auto-resolution or coordinator/`AcpxSubprocessService` supervisor owns them.
 Source: `coding-task-helpers.ts` lines 158 to 163.
 ### 5.6 Message metadata
 When creating synthetic or stored messages, preserve:
@@ -1204,8 +1204,8 @@ When creating synthetic or stored messages, preserve:
 Nyx synthetic message sets these fields in `.research/nyx-spawn-codex/spawn_codex.js` lines 216 to 243.
 ---
 ## 6. Configuration env vars
-ACP should support its own env vars and compatibility aliases.
-### 6.1 ACP primary vars
+@stwd/plugin-acpx should support its own env vars and compatibility aliases.
+### 6.1 @stwd/plugin-acpx primary vars
 ```txt
 ELIZA_ACP_CLI
 ELIZA_ACP_DEFAULT_AGENT
@@ -1230,7 +1230,7 @@ Recommended meanings:
 - `ELIZA_ACP_DEFAULT_APPROVAL_PRESET`: readonly, standard, permissive, autonomous.
 - `ELIZA_ACP_AGENT_SELECTION_STRATEGY`: fixed or ranked.
 - `ELIZA_ACP_MAX_SESSIONS`: maximum concurrent sessions.
-- model vars: per-agent model defaults passed to ACP CLI.
+- model vars: per-agent model defaults passed to acpx CLI.
 ### 6.2 Orchestrator compatibility vars
 Support these aliases:
 ```txt
@@ -1281,7 +1281,7 @@ Source references:
 ### 6.3 Precedence
 Recommended precedence:
 1. Explicit action params.
-2. ACP env vars.
+2. @stwd/plugin-acpx env vars.
 3. Orchestrator compatibility env vars or runtime settings.
 4. Config-file env section when available.
 5. Built-in defaults.
@@ -1289,10 +1289,10 @@ Orchestrator often reads config file first, then runtime, then process env. Exam
 - `readConfigEnvKey` reads config env in `config-env.ts` lines 32 to 36.
 - `safeGetSetting` checks config first, then runtime in `task-agent-frameworks.ts` lines 274 to 293.
 - Scratch dir checks runtime, config, then process env in `coding-task-helpers.ts` lines 62 to 69.
-ACP may choose a simpler precedence, but document it in code and tests.
+@stwd/plugin-acpx may choose a simpler precedence, but document it in code and tests.
 ---
 ## 7. Explicitly not matched
-ACP must not spend migration time on these orchestrator surfaces unless a later requirement adds them.
+@stwd/plugin-acpx must not spend migration time on these orchestrator surfaces unless a later requirement adds them.
 ### 7.1 Workspace actions
 Do not implement full:
 - `PROVISION_WORKSPACE`
@@ -1303,7 +1303,7 @@ Do not implement full:
 - pushes
 - PR creation
 Source: README lists workspace features in README lines 129 to 164 and canonical workspace actions in README lines 73 to 74.
-ACP requirement is only:
+@stwd/plugin-acpx requirement is only:
 - `CREATE_TASK` can accept `repo` and either clone minimally or return `WORKSPACE_SERVICE_UNAVAILABLE`.
 - For Nyx, `workdir` scratch is sufficient.
 ### 7.2 SwarmCoordinator internals
@@ -1329,7 +1329,7 @@ Do not match Milady subscription detection:
 - cloud proxy key detection
 - account pool failover
 Source: README lines 12, 28 to 34, and 194 to 206; framework code in `task-agent-frameworks.ts` lines 427 to 455 and 620 to 649.
-ACP should implement deterministic default selection.
+@stwd/plugin-acpx should implement deterministic default selection.
 ### 7.5 Skill bridge and structured proof bridge
 Do not match:
 - `MILADY_SKILLS_MANIFEST`
@@ -1344,7 +1344,7 @@ Do not match unless requested:
 - `TASK_HISTORY`
 - `TASK_SHARE`
 - `MANAGE_ISSUES`
-They are registered by orchestrator in `index.ts` lines 59 to 67, but not part of the six-action ACP parity target.
+They are registered by orchestrator in `index.ts` lines 59 to 67, but not part of the six-action @stwd/plugin-acpx parity target.
 ---
 ## 8. Nyx `spawn_codex` compatibility
 ### 8.1 Consumer contract
@@ -1388,9 +1388,9 @@ Synthetic message content contains:
 }
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 216 to 227.
-ACP must read `workdir` from message content even though `options.parameters` does not include it.
+@stwd/plugin-acpx must read `workdir` from message content even though `options.parameters` does not include it.
 ### 8.3 Required `CREATE_TASK` result for Nyx
-If action throws, Nyx returns error. ACP should not throw for expected failures.
+If action throws, Nyx returns error. @stwd/plugin-acpx should not throw for expected failures.
 If no result, Nyx returns error.
 If `success === false`, Nyx builds a failure reason from `text`, `error`, and callback texts.
 If success but no session ids, Nyx returns error.
@@ -1416,7 +1416,7 @@ Required success:
 ```
 ### 8.4 Required event stream for Nyx
 Nyx subscribes before invoking the action, buffers untracked events, then calls `track(sessionIds)` after action result.
-ACP must emit events through `onSessionEvent` in-process.
+@stwd/plugin-acpx must emit events through `onSessionEvent` in-process.
 Nyx ingests:
 ```js
 if (event === "task_complete") {
@@ -1435,8 +1435,8 @@ if (event === "task_complete") {
 }
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 278 to 298.
-Therefore ACP must:
-1. Emit `task_complete` with `data.response` when the ACP subagent produces a final answer.
+Therefore @stwd/plugin-acpx must:
+1. Emit `task_complete` with `data.response` when the acpx subagent produces a final answer.
 2. Emit `stopped` after process exits or is auto-stopped.
 3. Include `data.response` on `stopped` if no prior `task_complete` was emitted and final output exists.
 4. Emit `error` with `data.message` on failures.
@@ -1447,30 +1447,30 @@ Nyx treats all sessions as terminal when:
 - all sessions emitted at least one `task_complete` and 1500 ms have elapsed, or
 - hard timeout trips.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 301 to 360.
-ACP should emit `task_complete` promptly and then `stopped` soon after to avoid waiting for timeout.
+@stwd/plugin-acpx should emit `task_complete` promptly and then `stopped` soon after to avoid waiting for timeout.
 ### 8.6 Framework downgrade note
 Nyx detects downgrade:
 ```js
 const downgrade = agentRecords.find((a) => a.agentType && a.agentType !== "codex");
 ```
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 151 to 154.
-ACP should honor `agentType: "codex"` exactly when supplied. Do not silently route Nyx to another framework unless codex is unavailable and the action is still considered success. If downgraded, set `agentType` to actual framework so Nyx can report it.
+@stwd/plugin-acpx should honor `agentType: "codex"` exactly when supplied. Do not silently route Nyx to another framework unless codex is unavailable and the action is still considered success. If downgraded, set `agentType` to actual framework so Nyx can report it.
 ### 8.7 Callback capture
 Nyx passes a callback that buffers text and returns `[]`.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 93 to 101.
-ACP must not assume callback output is chat-visible or that it returns `void`.
+@stwd/plugin-acpx must not assume callback output is chat-visible or that it returns `void`.
 ### 8.8 Workdir contract
 Nyx default workdir is `/workspace/tasks/<timestamp>-<uuid8>`.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 34 to 36 and 185 to 195.
-ACP must:
+@stwd/plugin-acpx must:
 - create the workdir if absent
 - pass it to subprocess cwd
 - return it unchanged in `data.agents[0].workdir`
 ### 8.9 Model contract
 Nyx forwards optional `model` and says it should set `OPENAI_MODEL` via orchestrator.
 Source: `.research/nyx-spawn-codex/spawn_codex.js` lines 64 to 68 and 117 to 123.
-Orchestrator source does not visibly consume `model` in `CREATE_TASK` handler sections read. ACP should implement this cleanly:
-- If `agentType === "codex"` and `model` provided, set `OPENAI_MODEL=model` in subprocess env or translate to ACP CLI model flag.
+Orchestrator source does not visibly consume `model` in `CREATE_TASK` handler sections read. @stwd/plugin-acpx should implement this cleanly:
+- If `agentType === "codex"` and `model` provided, set `OPENAI_MODEL=model` in subprocess env or translate to acpx CLI model flag.
 - Preserve `metadata.modelPrefs` if W6 uses model prefs.
 **TODO verify** exact orchestrator model forwarding path for `model` because the researched `CREATE_TASK` handler did not show direct `model` extraction.
 ---
@@ -1521,7 +1521,7 @@ Test precedence:
 - stops sessions and marks store
 - returns stopped session ids
 ### 9.4 Unit tests for events
-Use fake ACP process adapter.
+Use fake acpx process adapter.
 Assert:
 - `onSessionEvent` returns unsubscribe.
 - events before Nyx `track()` are still received by Nyx because subscription is active.
@@ -1538,12 +1538,12 @@ Port `.research/nyx-spawn-codex/spawn_codex.js` behavior into tests:
    ```js
    { task: "write hello", workdir: tmpdir, agentType: "codex" }
    ```
-5. Fake ACP emits `task_complete` with response.
+5. Fake acpx process emits `task_complete` with response.
 6. Assert tool transcript contains response and `is_error: false`.
 7. Failure case: action returns success false, assert tool error.
 8. No session ids case, assert tool error.
 9. Timeout case, assert tool timeout error.
-### 9.6 Integration tests for real ACP CLI
+### 9.6 Integration tests for real acpx CLI
 If `ELIZA_ACP_CLI` is configured:
 - spawn a codex task in temp dir
 - ask it to write a file
@@ -1559,7 +1559,7 @@ Scenarios:
 2. User asks to send follow-up to the running agent. Planner calls `SEND_TO_AGENT`.
 3. User asks what is running. Planner calls `LIST_AGENTS`.
 4. User asks to cancel. Planner calls `CANCEL_TASK` or `STOP_AGENT`.
-5. User asks a simple reply. ACP validation does not force task spawn.
+5. User asks a simple reply. acpx validation does not force task spawn.
 ### 9.8 Regression tests for ugly source behavior we intentionally preserve
 Preserve:
 - `CREATE_TASK` success `text` is empty.

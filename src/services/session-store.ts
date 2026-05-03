@@ -338,7 +338,7 @@ export class FileSessionStore extends InMemorySessionStore {
       } catch (error) {
         const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined;
         if (code !== "ENOENT") {
-          this.logger?.warn?.("ACP SessionStore JSON could not be read; starting with an empty store", error);
+          this.logger?.warn?.("acpx SessionStore JSON could not be read; starting with an empty store", error);
         }
         this.sessions.clear();
       }
@@ -522,7 +522,7 @@ export class AcpSessionStore implements SessionStore {
     if (options.backend === "memory") {
       this.backend = "memory";
       this.delegate = new InMemorySessionStore();
-      logger?.warn?.("ACP SessionStore is using in-memory storage; sessions will not persist across restarts");
+      logger?.warn?.("acpx SessionStore is using in-memory storage; sessions will not persist across restarts");
       return;
     }
 
@@ -534,7 +534,7 @@ export class AcpSessionStore implements SessionStore {
     } catch (error) {
       this.backend = "memory";
       this.delegate = new InMemorySessionStore();
-      logger?.warn?.("ACP SessionStore could not initialize file storage; sessions will not persist across restarts", error);
+      logger?.warn?.("acpx SessionStore could not initialize file storage; sessions will not persist across restarts", error);
     }
   }
 

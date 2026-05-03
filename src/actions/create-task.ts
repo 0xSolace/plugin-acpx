@@ -61,8 +61,8 @@ async function runPromptAndClose(
       ? await service.sendPrompt(session.sessionId, task, { timeoutMs, model })
       : await service.sendToSession(session.sessionId, task);
     if (result.error || result.stopReason === "error") {
-      emitSessionEvent(service, session.sessionId, "error", { message: result.error ?? "ACP prompt ended with stopReason error", stopReason: result.stopReason });
-      throw new Error(result.error ?? "ACP prompt failed");
+      emitSessionEvent(service, session.sessionId, "error", { message: result.error ?? "acpx prompt ended with stopReason error", stopReason: result.stopReason });
+      throw new Error(result.error ?? "acpx prompt failed");
     }
     emitSessionEvent(service, session.sessionId, "task_complete", {
       response: result.finalText || result.response,

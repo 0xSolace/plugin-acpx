@@ -10,7 +10,7 @@ named sessions, cooperative cancel, and crash-resilient sessions.
 
 `plugin-agent-orchestrator` (sibling, PTY-based) maintains an entire
 stall-classifier, ANSI-stripping, prompt-regex-dismissal, pty-state-capture
-stack to extract structure out of terminal byte streams. ACP is the structured
+stack to extract structure out of terminal byte streams. The Agent Client Protocol (ACP) is the structured
 protocol underneath, `tool_call`, `thinking`, `diff`, `done` events, typed
 auth handshake, cooperative `session/cancel`. ACPX provides one CLI surface
 across 15 Agent Client Protocol (ACP)-compatible coding agents (codex, claude-code, gemini, copilot,
@@ -44,7 +44,7 @@ Match `plugin-agent-orchestrator` exactly:
 
 | Action | Purpose |
 |---|---|
-| `SPAWN_AGENT` | Spawn an ACP session |
+| `SPAWN_AGENT` | Spawn an acpx coding-agent session |
 | `SEND_TO_AGENT` | Send prompt or input to running session |
 | `LIST_AGENTS` | List active sessions |
 | `STOP_AGENT` | Terminate session via session/cancel |
@@ -107,7 +107,7 @@ src/
   services/
     acpx-subprocess.ts  # core ACPX wrapper
     session-store.ts    # persistent session state
-    types.ts            # ACP event types
+    types.ts            # acpx event types
   __tests__/
     *.test.ts
 docs/
