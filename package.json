@@ -1,7 +1,7 @@
 {
-  "name": "@elizaos/plugin-acp",
+  "name": "@elizaos/plugin-acpx",
   "version": "0.1.0-rc.1",
-  "description": "ACP-based coding agent orchestration plugin for ElizaOS",
+  "description": "ACPX-based coding agent orchestration plugin for ElizaOS",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -38,7 +38,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/elizaos-plugins/plugin-acp.git"
+    "url": "git+https://github.com/elizaos-plugins/plugin-acpx.git"
   },
   "author": "@stwd / 0xSolace",
   "license": "MIT",

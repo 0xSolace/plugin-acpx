@@ -1,7 +1,7 @@
-# @elizaos/plugin-acp
+# @elizaos/plugin-acpx
 
-[![npm version](https://img.shields.io/npm/v/@elizaos/plugin-acp.svg)](https://www.npmjs.com/package/@elizaos/plugin-acp)
-[![license](https://img.shields.io/npm/l/@elizaos/plugin-acp.svg)](./LICENSE)
+[![npm version](https://img.shields.io/npm/v/@elizaos/plugin-acpx.svg)](https://www.npmjs.com/package/@elizaos/plugin-acpx)
+[![license](https://img.shields.io/npm/l/@elizaos/plugin-acpx.svg)](./LICENSE)
 
 ElizaOS plugin for orchestrating coding agents through [ACPX](https://github.com/0xouroboros/acp), the Agent Client Protocol CLI. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured ACP events under the hood instead of PTY scraping.
 
@@ -23,7 +23,7 @@ The plugin keeps the same action names so existing flows continue to work.
 ## Installation
 
 ```bash
-npm install @elizaos/plugin-acp
+npm install @elizaos/plugin-acpx
 npm install -g acpx@latest
 acpx --version
 ```
@@ -33,7 +33,7 @@ You also need at least one ACP-compatible agent CLI installed (`codex`, `claude`
 ## Quick start
 
 ```ts
-import acpPlugin from "@elizaos/plugin-acp";
+import acpPlugin from "@elizaos/plugin-acpx";
 
 export default {
   plugins: [acpPlugin],
@@ -73,7 +73,7 @@ Once loaded, the plugin registers `AcpService` (also aliased as `PTY_SERVICE` fo
 `AcpService` is the core — wraps acpx subprocess lifecycle, NDJSON parsing, session state, and event emission.
 
 ```ts
-import { AcpService } from "@elizaos/plugin-acp";
+import { AcpService } from "@elizaos/plugin-acpx";
 
 const acp = runtime.getService("PTY_SERVICE") as AcpService;
 // or: runtime.getService("ACP_SERVICE") as AcpService;

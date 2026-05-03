@@ -1,4 +1,4 @@
-# @elizaos/plugin-acp
+# @elizaos/plugin-acpx
 
 ElizaOS plugin: ACP-based coding agent orchestration.
 
