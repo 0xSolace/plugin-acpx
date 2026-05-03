@@ -1,7 +1,7 @@
 {
   "name": "@miladyai/plugin-acpx",
   "version": "0.1.0-rc.1",
-  "description": "ACPX-based coding agent orchestration plugin for ElizaOS",
+  "description": "acpx-backed task and subagent plugin for ElizaOS. Wraps the acpx CLI to spawn coding agents (codex/claude/gemini) as subprocesses and exposes them through ElizaOS actions.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -31,9 +31,11 @@
   "keywords": [
     "elizaos",
     "plugin",
-    "acp",
+    "acpx",
     "agent-client-protocol",
     "coding-agent",
+    "subagent",
+    "task",
     "milady"
   ],
   "repository": {

@@ -36,7 +36,7 @@ Drop-in compatible means:
 5. Input values are read from `options.parameters` first and `message.content` second, matching orchestrator extraction patterns.
 6. Success and failure `ActionResult` shapes are compatible, especially `ActionResult.data.agents` for `CREATE_TASK`.
 7. `HandlerCallback` usage is compatible enough that chat users and in-process consumers receive equivalent status and error text.
-8. `runtime.getService("PTY_SERVICE")` can be replaced by the ACP service compatibility facade where callers expect orchestrator's PTY service.
+8. `runtime.getService("PTY_SERVICE")` can be replaced by the `AcpxSubprocessService` compatibility facade where callers expect orchestrator's PTY service.
 9. Session events delivered through `onSessionEvent` match orchestrator event names and payload fields that consumers depend on.
 Source references:
 - The README defines the task-agent purpose and action list in README lines 3 to 14 and 64 to 76.
@@ -128,7 +128,7 @@ Source references:
 - `CREATE_TASK` extracts params and content in `start-coding-task.ts` lines 443 to 445.
 Common service requirement:
 - Orchestrator validates by checking `runtime.getService("PTY_SERVICE")` for most actions.
-- ACP must either provide that service name or make action handlers resolve the ACP service first and expose a compatibility facade for external callers.
+- `@miladyai/plugin-acpx` must either provide that service name or make action handlers resolve `AcpxSubprocessService` first and expose a compatibility facade for external callers.
 Common access policy:
 - Orchestrator calls `requireTaskAgentAccess(runtime, message, "create")` for create/spawn and `"interact"` for list/send/stop/control.
 - ACP can omit Milady-specific access policy unless its runtime has equivalent controls, but it must preserve the error shape `{ success: false, error: "FORBIDDEN", text: reason }` if access is denied.
@@ -1531,7 +1531,7 @@ Assert:
 - `stopSession()` emits `stopped`.
 ### 9.5 Integration tests for Nyx contract
 Port `.research/nyx-spawn-codex/spawn_codex.js` behavior into tests:
-1. Build runtime with ACP plugin only.
+1. Build runtime with `@miladyai/plugin-acpx` only.
 2. Find `CREATE_TASK` by name.
 3. Find `PTY_SERVICE`.
 4. Invoke handler with synthetic message:
@@ -1553,7 +1553,7 @@ If `ELIZA_ACP_CLI` is configured:
 - `STOP_AGENT` cleans up
 Skip when CLI not available.
 ### 9.7 E2E tests
-Create an Eliza runtime with ACP plugin.
+Create an Eliza runtime with `@miladyai/plugin-acpx`.
 Scenarios:
 1. User asks a multi-step coding/research task. Planner calls `CREATE_TASK`. No duplicate post-action continuation.
 2. User asks to send follow-up to the running agent. Planner calls `SEND_TO_AGENT`.

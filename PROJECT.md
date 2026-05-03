@@ -1,6 +1,6 @@
 # @miladyai/plugin-acpx
 
-ElizaOS plugin: ACP-based coding agent orchestration.
+ElizaOS plugin: acpx-backed task and subagent backend (wraps the `acpx` CLI to spawn coding agents). Sibling, not replacement, for `@elizaos/plugin-agent-orchestrator`. Distinct from `@elizaos/plugin-acp` (Shaw's ACP gateway client).
 
 Drop-in compatible with `@elizaos/plugin-agent-orchestrator` (PTY-based). Uses
 ACPX (Agent Client Protocol CLI) under the hood for structured streaming,
@@ -11,9 +11,9 @@ named sessions, cooperative cancel, and crash-resilient sessions.
 `plugin-agent-orchestrator` (sibling, PTY-based) maintains an entire
 stall-classifier, ANSI-stripping, prompt-regex-dismissal, pty-state-capture
 stack to extract structure out of terminal byte streams. ACP is the structured
-protocol underneath — `tool_call`, `thinking`, `diff`, `done` events, typed
+protocol underneath, `tool_call`, `thinking`, `diff`, `done` events, typed
 auth handshake, cooperative `session/cancel`. ACPX provides one CLI surface
-across 15 ACP-compatible coding agents (codex, claude-code, gemini, copilot,
+across 15 Agent Client Protocol (ACP)-compatible coding agents (codex, claude-code, gemini, copilot,
 cursor, droid, qwen, etc).
 
 This plugin is a sibling-not-replacement: deploys alongside
@@ -53,7 +53,7 @@ Match `plugin-agent-orchestrator` exactly:
 
 ## Provider
 
-`availableAgents` provider exposes which ACP-compatible agents are installed.
+`availableAgents` provider exposes which Agent Client Protocol (ACP)-compatible agents are installed.
 
 ## Architecture
 
@@ -82,13 +82,13 @@ Match `plugin-agent-orchestrator` exactly:
 ## Reference materials
 
 In `.research/`:
-- `plugin-agent-orchestrator-src/` — full source of the PTY plugin we're paralleling
-- `plugin-agent-orchestrator-package.json` — its deps
-- `plugin-agent-orchestrator-README.md` — its surface
-- `acpx-docs/README.md` — acpx README
-- `acpx-docs/docs_CLI.md` — full acpx CLI reference
-- `acpx-docs/skills_acpx_SKILL.md` — skill reference
-- `nyx-spawn-codex/spawn_codex.js` — example of how nyx wraps plugin-agent-orchestrator's CREATE_TASK today
+- `plugin-agent-orchestrator-src/`, full source of the PTY plugin we're paralleling
+- `plugin-agent-orchestrator-package.json`, its deps
+- `plugin-agent-orchestrator-README.md`, its surface
+- `acpx-docs/README.md`, acpx README
+- `acpx-docs/docs_CLI.md`, full acpx CLI reference
+- `acpx-docs/skills_acpx_SKILL.md`, skill reference
+- `nyx-spawn-codex/spawn_codex.js`, example of how nyx wraps plugin-agent-orchestrator's CREATE_TASK today
 
 ## Layout
 
@@ -118,7 +118,7 @@ PROJECT.md              # this file
 
 ## Status
 
-🚧 Bootstrapping — wave A in progress.
+🚧 Bootstrapping, wave A in progress.
 
 ## License
 

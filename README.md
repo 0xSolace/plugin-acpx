@@ -3,13 +3,15 @@
 [![npm version](https://img.shields.io/npm/v/@miladyai/plugin-acpx.svg)](https://www.npmjs.com/package/@miladyai/plugin-acpx)
 [![license](https://img.shields.io/npm/l/@miladyai/plugin-acpx.svg)](./LICENSE)
 
-ElizaOS plugin for orchestrating coding agents through [ACPX](https://github.com/0xouroboros/acp), the Agent Client Protocol CLI. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured ACP events under the hood instead of PTY scraping.
+An **acpx-backed task and subagent plugin** for ElizaOS. It wraps the [`acpx`](https://github.com/0xouroboros/acp) CLI to spawn local coding agents (codex, claude, gemini, ...) as background sessions and exposes them through ElizaOS actions. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured Agent Client Protocol (ACP) events under the hood instead of PTY scraping.
+
+> Naming: this plugin is *not* the same thing as `@elizaos/plugin-acp`. That package is Shaw's ACP gateway client (IDE bridge over a remote ACP gateway). `@miladyai/plugin-acpx` is the *task backend* that uses `acpx` to run coding agents as subprocesses on the same host as the runtime.
 
 ## Why
 
 `plugin-agent-orchestrator` runs each coding agent (codex, claude, gemini, ...) inside a pseudo-terminal and parses ANSI escape codes, prompt regexes, and stall heuristics. It works, but it inherits every quirk of every agent's terminal UI.
 
-`plugin-acp` swaps the transport: it spawns each agent through `acpx`, which speaks the [Agent Client Protocol](https://agentclientprotocol.com/) and emits a typed JSON-RPC stream:
+`plugin-acpx` swaps the transport: it spawns each agent through `acpx`, which speaks the [Agent Client Protocol](https://agentclientprotocol.com/) and emits a typed JSON-RPC stream:
 
 - structured `tool_call` / `tool_call_update` events instead of ANSI scraping
 - cooperative cancellation via `session/cancel`
@@ -40,13 +42,13 @@ export default {
 };
 ```
 
-Once loaded, the plugin registers `AcpService` (also aliased as `PTY_SERVICE` for back-compat with `plugin-agent-orchestrator` consumers), six actions, and one provider.
+Once loaded, the plugin registers `AcpxSubprocessService` (`AcpService` for short, also aliased as `PTY_SERVICE` for back-compat with `plugin-agent-orchestrator` consumers), six actions, and one provider.
 
 ## Actions
 
 | Action | Purpose |
 | --- | --- |
-| `SPAWN_AGENT` | Start a long-lived ACP coding-agent session. Returns `data.agents[]`. |
+| `SPAWN_AGENT` | Start a long-lived acpx coding-agent session. Returns `data.agents[]`. |
 | `SEND_TO_AGENT` | Send a prompt to a running session, await completion. |
 | `LIST_AGENTS` | List active and persisted sessions. |
 | `STOP_AGENT` | Cooperatively cancel + close a session. |
@@ -70,7 +72,7 @@ Once loaded, the plugin registers `AcpService` (also aliased as `PTY_SERVICE` fo
 
 ## Service
 
-`AcpService` is the core — wraps acpx subprocess lifecycle, NDJSON parsing, session state, and event emission.
+`AcpxSubprocessService` (exported as `AcpService` for short) is the core. It wraps acpx subprocess lifecycle, NDJSON parsing, session state, and event emission.
 
 ```ts
 import { AcpService } from "@miladyai/plugin-acpx";
@@ -107,7 +109,7 @@ The `task_complete` event matches `plugin-agent-orchestrator`'s shape:
 
 ## Configuration
 
-All configuration is via environment variables. Sensible defaults — most users only need `ELIZA_ACP_CLI` if `acpx` is not on PATH.
+All configuration is via environment variables. Sensible defaults; most users only need `ELIZA_ACP_CLI` if `acpx` is not on `PATH`. The `ELIZA_ACP_*` prefix is named after the protocol; the package itself wraps the `acpx` CLI.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
@@ -116,7 +118,7 @@ All configuration is via environment variables. Sensible defaults — most users
 | `ELIZA_ACP_DEFAULT_APPROVAL` | `autonomous` | Approval preset (`read-only`, `auto`, `permissive`, `autonomous`, `full-access`). |
 | `ELIZA_ACP_PROMPT_TIMEOUT_MS` | `1800000` (30m) | Per-prompt timeout. |
 | `ELIZA_ACP_AUTH_TIMEOUT_MS` | `120000` | Auth handshake timeout. |
-| `ELIZA_ACP_STATE_DIR` | `~/.eliza/plugin-acp` | Where to persist session state when no runtime DB. |
+| `ELIZA_ACP_STATE_DIR` | `~/.eliza/plugin-acpx` | Where to persist session state when no runtime DB. |
 | `ELIZA_ACP_WORKSPACE_ROOT` | runtime cwd | Base directory for spawned agent workdirs. |
 | `ELIZA_ACP_LOG_LEVEL` | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ELIZA_ACP_MAX_SESSIONS` | unlimited | Concurrent session cap. |
@@ -143,17 +145,17 @@ node tests/e2e/acp-codex-smoke.mjs
 
 It spawns a real codex session, sends "what is 7 + 8?", and verifies `task_complete` fires with response `"15"`. Useful as a sanity check before integrating into a real runtime.
 
-## Compatibility with plugin-agent-orchestrator
+## Compatibility with `@elizaos/plugin-agent-orchestrator`
 
-You can run both plugins side-by-side. The actions don't conflict by name — actions are dispatched by description matching, not name collision. To make `runtime.getService("PTY_SERVICE")` return the ACP service, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=true` (default) and don't load `plugin-agent-orchestrator`. To use both, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=false` and let the orchestrator own the PTY_SERVICE alias.
+You can run both plugins side-by-side. The actions don't conflict by name; they are dispatched by description matching, not name collision. To make `runtime.getService("PTY_SERVICE")` return the acpx subprocess service, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=true` (default) and don't load `plugin-agent-orchestrator`. To use both, set `ELIZA_ACP_REGISTER_AS_PTY_SERVICE=false` and let the orchestrator own the `PTY_SERVICE` alias.
 
 ## Status
 
-`0.1.0-rc.1` — alpha, but every layer is implemented and tested:
+`0.1.0-rc.1`. Alpha, but every layer is implemented and tested:
 
-- 9 test files, 37 unit tests, 100% passing
-- real e2e smoke against acpx + codex passes
-- nyx-compatible CREATE_TASK + PTY_SERVICE alias
+- 9 test files, 38 unit tests, 100% passing
+- real e2e smoke against `acpx` + codex passes
+- nyx-compatible `CREATE_TASK` + `PTY_SERVICE` alias
 
 What's deferred to later versions:
 

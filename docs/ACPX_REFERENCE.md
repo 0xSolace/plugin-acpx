@@ -8,7 +8,7 @@ Canonical reference for the `acpx` CLI as consumed by `@miladyai/plugin-acpx`. A
 
 ### What it is
 
-- One CLI surface across 15+ ACP-compatible coding agents (codex, claude, gemini, cursor, copilot, qwen, droid, kimi, kilocode, iflow, qoder, trae, opencode, kiro, pi).
+- One CLI surface across 15+ Agent Client Protocol (ACP)-compatible coding agents (codex, claude, gemini, cursor, copilot, qwen, droid, kimi, kilocode, iflow, qoder, trae, opencode, kiro, pi).
 - Persistent named sessions per repo (cwd-scoped, optionally named).
 - Prompt queueing, cooperative cancel, crash reconnect.
 - Three output formats (text, json, quiet) with NDJSON-on-stdout for automation.

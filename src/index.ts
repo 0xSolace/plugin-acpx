@@ -10,7 +10,7 @@ import { AcpService } from "./services/acp-service.js";
 
 export const acpPlugin: Plugin = {
   name: "@miladyai/plugin-acpx",
-  description: "ACP-based coding agent orchestration",
+  description: "acpx-backed task and subagent plugin for ElizaOS",
   actions: [
     createTaskAction,
     spawnAgentAction,
