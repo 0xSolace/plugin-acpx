@@ -15,6 +15,84 @@ export type SessionStatus =
   | "tool_running"
   | string;
 
+export type SessionEventName =
+  | "ready"
+  | "blocked"
+  | "login_required"
+  | "task_complete"
+  | "tool_running"
+  | "stopped"
+  | "error"
+  | "message"
+  | "reconnected"
+  | string;
+
+export type SessionEventCallback = (
+  sessionId: string,
+  event: SessionEventName,
+  data: unknown,
+) => void;
+
+export type AcpEventCallback = (event: AcpJsonRpcMessage, sessionId?: string) => void;
+
+export interface SpawnOptions {
+  name?: string;
+  agentType?: AgentType;
+  workdir?: string;
+  initialTask?: string;
+  env?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  credentials?: unknown;
+  memoryContent?: string;
+  approvalPreset?: ApprovalPreset;
+  customCredentials?: Record<string, string>;
+  skipAdapterAutoResponse?: boolean;
+  timeoutMs?: number;
+  model?: string;
+}
+
+export interface SpawnResult {
+  sessionId: string;
+  id: string;
+  name: string;
+  agentType: AgentType;
+  workdir: string;
+  status: SessionStatus;
+  acpxRecordId?: string;
+  acpxSessionId?: string;
+  agentSessionId?: string;
+  pid?: number;
+  authReady?: boolean;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SendOptions {
+  timeoutMs?: number;
+  silent?: boolean;
+  env?: Record<string, string>;
+  model?: string;
+}
+
+export interface PromptResult {
+  sessionId: string;
+  response: string;
+  finalText: string;
+  stopReason: string;
+  durationMs: number;
+  exitCode?: number | null;
+  signal?: NodeJS.Signals | null;
+  error?: string;
+}
+
+export interface AvailableAgentInfo {
+  adapter: AgentType;
+  agentType: AgentType;
+  installed: boolean;
+  installCommand?: string;
+  docsUrl?: string;
+  auth?: { status?: "authenticated" | "unauthenticated" | "unknown" | string; detail?: string };
+}
+
 export interface SessionInfo {
   id: string;
   name?: string;
@@ -62,4 +140,38 @@ export interface SessionStoreRuntime {
     debug?: (message: string, ...args: unknown[]) => void;
   };
   getSetting?: (key: string) => string | undefined;
+}
+
+export interface AcpJsonRpcBase {
+  jsonrpc?: "2.0" | string;
+}
+
+export interface AcpJsonRpcRequest extends AcpJsonRpcBase {
+  id: string | number;
+  method: string;
+  params?: unknown;
+}
+
+export interface AcpJsonRpcNotification extends AcpJsonRpcBase {
+  method: string;
+  params?: unknown;
+}
+
+export interface AcpJsonRpcResponse extends AcpJsonRpcBase {
+  id: string | number;
+  result?: unknown;
+  error?: { code?: number; message?: string; data?: unknown };
+}
+
+export type AcpJsonRpcMessage =
+  | AcpJsonRpcRequest
+  | AcpJsonRpcNotification
+  | AcpJsonRpcResponse
+  | Record<string, unknown>;
+
+export interface AcpToolCall {
+  id?: string;
+  title?: string;
+  status?: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
+  output?: string;
 }
