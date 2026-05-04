@@ -1,7 +1,8 @@
 # @0xsolace/plugin-acpx
 
 [![npm version](https://img.shields.io/npm/v/@0xsolace/plugin-acpx.svg)](https://www.npmjs.com/package/@0xsolace/plugin-acpx)
-[![license](https://img.shields.io/npm/l/@0xsolace/plugin-acpx.svg)](./LICENSE)
+[![CI](https://github.com/0xSolace/plugin-acpx/actions/workflows/ci.yml/badge.svg)](https://github.com/0xSolace/plugin-acpx/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 An **acpx-backed task and subagent plugin** for ElizaOS. It wraps the [`acpx`](https://github.com/0xouroboros/acp) CLI to spawn local coding agents (codex, claude, gemini, ...) as background sessions and exposes them through ElizaOS actions. Drop-in compatible with `@elizaos/plugin-agent-orchestrator`'s action surface, but uses structured Agent Client Protocol (ACP) events under the hood instead of PTY scraping.
 
