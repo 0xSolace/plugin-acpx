@@ -8,8 +8,8 @@ import {
   failureMessage,
   getAcpService,
   getTimeoutMs,
+  type HandlerOptionsLike,
   hasExplicitPayload,
-  isAuthError,
   logger,
   looksLikeTaskAgentRequest,
   messageText,
@@ -17,7 +17,6 @@ import {
   parseApproval,
   pickString,
   setCurrentSessions,
-  type HandlerOptionsLike,
 } from "./common.js";
 
 const MAX_CONCURRENT_AGENTS = 8;
@@ -31,13 +30,23 @@ function looksLikeLifeOpsRequest(text: string | undefined | null): boolean {
   );
 }
 
-function taskParts(params: Record<string, unknown>, content: Record<string, unknown>, fallbackText: string): string[] {
+function taskParts(
+  params: Record<string, unknown>,
+  content: Record<string, unknown>,
+  fallbackText: string,
+): string[] {
   const agents = pickString(params, content, "agents");
   if (!agents) return [pickString(params, content, "task") ?? fallbackText];
-  return agents.split("|").map((part) => part.trim()).filter(Boolean);
+  return agents
+    .split("|")
+    .map((part) => part.trim())
+    .filter(Boolean);
 }
 
-function parseAgentPrefix(part: string, fallbackAgentType: string): { task: string; agentType: string } {
+function parseAgentPrefix(
+  part: string,
+  fallbackAgentType: string,
+): { task: string; agentType: string } {
   const match = part.match(/^([a-z][a-z0-9_-]{1,32})\s*:\s*(.+)$/i);
   if (!match) return { task: part, agentType: fallbackAgentType };
   return { agentType: match[1] ?? fallbackAgentType, task: match[2] ?? part };
@@ -61,7 +70,10 @@ async function runPromptAndClose(
       ? await service.sendPrompt(session.sessionId, task, { timeoutMs, model })
       : await service.sendToSession(session.sessionId, task);
     if (result.error || result.stopReason === "error") {
-      emitSessionEvent(service, session.sessionId, "error", { message: result.error ?? "acpx prompt ended with stopReason error", stopReason: result.stopReason });
+      emitSessionEvent(service, session.sessionId, "error", {
+        message: result.error ?? "acpx prompt ended with stopReason error",
+        stopReason: result.stopReason,
+      });
       throw new Error(result.error ?? "acpx prompt failed");
     }
     emitSessionEvent(service, session.sessionId, "task_complete", {
@@ -70,13 +82,17 @@ async function runPromptAndClose(
       stopReason: result.stopReason,
     });
   } catch (error) {
-    emitSessionEvent(service, session.sessionId, "error", { message: failureMessage(error) });
+    emitSessionEvent(service, session.sessionId, "error", {
+      message: failureMessage(error),
+    });
     throw error;
   } finally {
     try {
       await service.stopSession(session.sessionId);
     } finally {
-      emitSessionEvent(service, session.sessionId, "stopped", { sessionId: session.sessionId });
+      emitSessionEvent(service, session.sessionId, "stopped", {
+        sessionId: session.sessionId,
+      });
     }
   }
 }
@@ -97,27 +113,100 @@ export const createTaskAction = {
     "Create one or more asynchronous task agents for any open-ended multi-step job. Agents can code, debug, research, write, analyze, plan, document, and automate while the main agent remains available.",
   suppressPostActionContinuation: true,
   parameters: [
-    { name: "repo", description: "Repository URL or slug", required: false, schema: { type: "string" } },
-    { name: "agentType", description: "Agent type to launch", required: false, schema: { type: "string" } },
-    { name: "task", description: "Task prompt", required: false, schema: { type: "string" } },
-    { name: "agents", description: "Pipe-delimited multi-agent task list", required: false, schema: { type: "string" } },
-    { name: "memoryContent", description: "Additional memory/context", required: false, schema: { type: "string" } },
-    { name: "label", description: "Task label", required: false, schema: { type: "string" } },
-    { name: "approvalPreset", description: "Approval policy", required: false, schema: { type: "string", enum: ["readonly", "standard", "permissive", "autonomous"] } },
-    { name: "validator", description: "Optional verifier", required: false, schema: { type: "object" } },
-    { name: "maxRetries", description: "Verifier retry count", required: false, schema: { type: "integer", minimum: 0 } },
-    { name: "onVerificationFail", description: "Verifier failure behavior", required: false, schema: { type: "string", enum: ["retry", "escalate"] } },
-    { name: "metadata", description: "Additional metadata", required: false, schema: { type: "object" } },
+    {
+      name: "repo",
+      description: "Repository URL or slug",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "agentType",
+      description: "Agent type to launch",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "task",
+      description: "Task prompt",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "agents",
+      description: "Pipe-delimited multi-agent task list",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "memoryContent",
+      description: "Additional memory/context",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "label",
+      description: "Task label",
+      required: false,
+      schema: { type: "string" },
+    },
+    {
+      name: "approvalPreset",
+      description: "Approval policy",
+      required: false,
+      schema: {
+        type: "string",
+        enum: ["readonly", "standard", "permissive", "autonomous"],
+      },
+    },
+    {
+      name: "validator",
+      description: "Optional verifier",
+      required: false,
+      schema: { type: "object" },
+    },
+    {
+      name: "maxRetries",
+      description: "Verifier retry count",
+      required: false,
+      schema: { type: "integer", minimum: 0 },
+    },
+    {
+      name: "onVerificationFail",
+      description: "Verifier failure behavior",
+      required: false,
+      schema: { type: "string", enum: ["retry", "escalate"] },
+    },
+    {
+      name: "metadata",
+      description: "Additional metadata",
+      required: false,
+      schema: { type: "object" },
+    },
   ],
   validate: async (runtime, message) => {
     if (!getAcpService(runtime)) return false;
-    if (hasExplicitPayload(message, ["task", "repo", "workdir", "agents", "agentType"])) return true;
+    if (
+      hasExplicitPayload(message, [
+        "task",
+        "repo",
+        "workdir",
+        "agents",
+        "agentType",
+      ])
+    )
+      return true;
     const text = messageText(message);
     if (!text.trim()) return true;
     if (looksLikeLifeOpsRequest(text)) return false;
     return looksLikeTaskAgentRequest(text);
   },
-  handler: async (runtime, message, state, options, callback): Promise<ActionResult> => {
+  handler: async (
+    runtime,
+    message,
+    state,
+    options,
+    callback,
+  ): Promise<ActionResult> => {
     const service = getAcpService(runtime);
     if (!service) {
       const text = "PTY Service is not available. Cannot create the task.";
@@ -135,11 +224,20 @@ export const createTaskAction = {
       return errorResult("TOO_MANY_AGENTS", msg);
     }
 
-    const baseAgentType = pickString(params, content, "agentType") ?? String(await service.resolveAgentType?.({ task: tasks[0], subtaskCount: tasks.length }) ?? "codex");
+    const baseAgentType =
+      pickString(params, content, "agentType") ??
+      String(
+        (await service.resolveAgentType?.({
+          task: tasks[0],
+          subtaskCount: tasks.length,
+        })) ?? "codex",
+      );
     const workdir = pickString(params, content, "workdir") ?? process.cwd();
     const model = pickString(params, content, "model");
     const memoryContent = pickString(params, content, "memoryContent");
-    const approvalPreset = parseApproval(pickString(params, content, "approvalPreset"));
+    const approvalPreset = parseApproval(
+      pickString(params, content, "approvalPreset"),
+    );
     const timeoutMs = getTimeoutMs(params, content);
     const baseLabel = pickString(params, content, "label");
     const results: Array<Record<string, unknown>> = [];
@@ -181,8 +279,20 @@ export const createTaskAction = {
         });
       } catch (error) {
         const msg = failureMessage(error);
-        logger(runtime).error?.("CREATE_TASK launch failed", { error: msg, agentType, workdir });
-        results.push({ sessionId: "", id: "", agentType, workdir, label, status: "failed", error: msg });
+        logger(runtime).error?.("CREATE_TASK launch failed", {
+          error: msg,
+          agentType,
+          workdir,
+        });
+        results.push({
+          sessionId: "",
+          id: "",
+          agentType,
+          workdir,
+          label,
+          status: "failed",
+          error: msg,
+        });
       }
     }
 
@@ -191,10 +301,18 @@ export const createTaskAction = {
     if (failed.length > 0) {
       const textOut = `I started some task agents, but ${failed.length} failed to launch: ${failed.map((item) => String(item.error)).join("; ")}.`;
       await callbackText(callback, textOut);
-      return { success: false, text: textOut, data: { agents: results, suppressActionResultClipboard: true } };
+      return {
+        success: false,
+        text: textOut,
+        data: { agents: results, suppressActionResultClipboard: true },
+      };
     }
 
-    return { success: true, text: "", data: { agents: results, suppressActionResultClipboard: true } };
+    return {
+      success: true,
+      text: "",
+      data: { agents: results, suppressActionResultClipboard: true },
+    };
   },
 } as Action & { suppressPostActionContinuation: true };
 

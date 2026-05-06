@@ -1,5 +1,13 @@
 import { constants } from "node:fs";
-import { access, mkdir, open, readFile, rename, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  open,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type {
@@ -80,12 +88,23 @@ function fromStoredSession(session: StoredSession): SessionInfo {
 
 function matchesFilter(session: SessionInfo, filter?: SessionFilter): boolean {
   if (!filter) return true;
-  if (filter.status !== undefined && session.status !== filter.status) return false;
-  if (filter.statuses !== undefined && !filter.statuses.includes(session.status)) return false;
-  if (filter.workdir !== undefined && session.workdir !== filter.workdir) return false;
-  if (filter.agentType !== undefined && session.agentType !== filter.agentType) return false;
+  if (filter.status !== undefined && session.status !== filter.status)
+    return false;
+  if (
+    filter.statuses !== undefined &&
+    !filter.statuses.includes(session.status)
+  )
+    return false;
+  if (filter.workdir !== undefined && session.workdir !== filter.workdir)
+    return false;
+  if (filter.agentType !== undefined && session.agentType !== filter.agentType)
+    return false;
   if (filter.name !== undefined && session.name !== filter.name) return false;
-  if (filter.acpxRecordId !== undefined && session.acpxRecordId !== filter.acpxRecordId) return false;
+  if (
+    filter.acpxRecordId !== undefined &&
+    session.acpxRecordId !== filter.acpxRecordId
+  )
+    return false;
   return true;
 }
 
@@ -93,9 +112,14 @@ function defaultStateFile(): string {
   return join(homedir(), ".eliza", "plugin-acp", "sessions.json");
 }
 
-function resolveStateFile(runtime?: SessionStoreRuntime, stateFile?: string): string {
+function resolveStateFile(
+  runtime?: SessionStoreRuntime,
+  stateFile?: string,
+): string {
   if (stateFile) return stateFile;
-  const configured = process.env.ELIZA_ACP_STATE_DIR ?? runtime?.getSetting?.("ELIZA_ACP_STATE_DIR");
+  const configured =
+    process.env.ELIZA_ACP_STATE_DIR ??
+    runtime?.getSetting?.("ELIZA_ACP_STATE_DIR");
   return configured ? join(configured, "sessions.json") : defaultStateFile();
 }
 
@@ -105,7 +129,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isSqlDatabaseAdapter(value: unknown): value is SqlDatabaseAdapter {
   if (!isRecord(value)) return false;
-  return ["query", "execute", "run", "all", "get", "select"].some((method) => typeof value[method] === "function");
+  return ["query", "execute", "run", "all", "get", "select"].some(
+    (method) => typeof value[method] === "function",
+  );
 }
 
 function normalizeRows(result: unknown): unknown[] {
@@ -122,19 +148,40 @@ function rowToSession(row: unknown): SessionInfo {
   if (!isRecord(row)) throw new Error("Invalid session row");
   return {
     id: String(row.id),
-    name: row.name === null || row.name === undefined ? undefined : String(row.name),
+    name:
+      row.name === null || row.name === undefined
+        ? undefined
+        : String(row.name),
     agentType: String(row.agent_type),
     workdir: String(row.workdir),
     status: String(row.status),
-    acpxRecordId: row.acpx_record_id === null || row.acpx_record_id === undefined ? undefined : String(row.acpx_record_id),
-    acpxSessionId: row.acpx_session_id === null || row.acpx_session_id === undefined ? undefined : String(row.acpx_session_id),
-    agentSessionId: row.agent_session_id === null || row.agent_session_id === undefined ? undefined : String(row.agent_session_id),
-    pid: row.pid === null || row.pid === undefined ? undefined : Number(row.pid),
-    approvalPreset: String(row.approval_preset) as SessionInfo["approvalPreset"],
+    acpxRecordId:
+      row.acpx_record_id === null || row.acpx_record_id === undefined
+        ? undefined
+        : String(row.acpx_record_id),
+    acpxSessionId:
+      row.acpx_session_id === null || row.acpx_session_id === undefined
+        ? undefined
+        : String(row.acpx_session_id),
+    agentSessionId:
+      row.agent_session_id === null || row.agent_session_id === undefined
+        ? undefined
+        : String(row.agent_session_id),
+    pid:
+      row.pid === null || row.pid === undefined ? undefined : Number(row.pid),
+    approvalPreset: String(
+      row.approval_preset,
+    ) as SessionInfo["approvalPreset"],
     createdAt: new Date(String(row.created_at)),
     lastActivityAt: new Date(String(row.last_activity_at)),
-    lastError: row.last_error === null || row.last_error === undefined ? undefined : String(row.last_error),
-    metadata: typeof row.metadata === "string" && row.metadata.length > 0 ? JSON.parse(row.metadata) : undefined,
+    lastError:
+      row.last_error === null || row.last_error === undefined
+        ? undefined
+        : String(row.last_error),
+    metadata:
+      typeof row.metadata === "string" && row.metadata.length > 0
+        ? JSON.parse(row.metadata)
+        : undefined,
   };
 }
 
@@ -193,7 +240,11 @@ export class InMemorySessionStore implements SessionStore {
     return null;
   }
 
-  async findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null> {
+  async findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null> {
     for (const session of this.sessions.values()) {
       if (
         session.workdir === opts.workdir &&
@@ -207,7 +258,9 @@ export class InMemorySessionStore implements SessionStore {
   }
 
   async list(filter?: SessionFilter): Promise<SessionInfo[]> {
-    return [...this.sessions.values()].filter((session) => matchesFilter(session, filter)).map(cloneSession);
+    return [...this.sessions.values()]
+      .filter((session) => matchesFilter(session, filter))
+      .map(cloneSession);
   }
 
   async update(id: string, patch: Partial<SessionInfo>): Promise<void> {
@@ -217,16 +270,28 @@ export class InMemorySessionStore implements SessionStore {
       const next: SessionInfo = {
         ...current,
         ...patch,
-        lastActivityAt: patch.lastActivityAt ? new Date(patch.lastActivityAt) : new Date(),
-        createdAt: patch.createdAt ? new Date(patch.createdAt) : current.createdAt,
-        metadata: patch.metadata ? { ...patch.metadata } : current.metadata ? { ...current.metadata } : undefined,
+        lastActivityAt: patch.lastActivityAt
+          ? new Date(patch.lastActivityAt)
+          : new Date(),
+        createdAt: patch.createdAt
+          ? new Date(patch.createdAt)
+          : current.createdAt,
+        metadata: patch.metadata
+          ? { ...patch.metadata }
+          : current.metadata
+            ? { ...current.metadata }
+            : undefined,
       };
       this.sessions.set(id, next);
       await this.afterWrite();
     });
   }
 
-  async updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
+  async updateStatus(
+    id: string,
+    status: SessionStatus,
+    error?: string,
+  ): Promise<void> {
     const patch: Partial<SessionInfo> = { status };
     if (status === "errored") patch.lastError = error;
     await this.update(id, patch);
@@ -287,7 +352,11 @@ export class FileSessionStore extends InMemorySessionStore {
     return super.getByAcpxRecordId(recordId);
   }
 
-  async findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null> {
+  async findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null> {
     await this.load();
     return super.findByScope(opts);
   }
@@ -316,7 +385,11 @@ export class FileSessionStore extends InMemorySessionStore {
     await this.withLock(async () => {
       await mkdir(dirname(this.filePath), { recursive: true });
       const tempPath = `${this.filePath}.${process.pid}.${Date.now()}.tmp`;
-      const payload = JSON.stringify([...this.sessions.values()].map(toStoredSession), null, 2);
+      const payload = JSON.stringify(
+        [...this.sessions.values()].map(toStoredSession),
+        null,
+        2,
+      );
       await writeFile(tempPath, `${payload}\n`, "utf8");
       await rename(tempPath, this.filePath);
     });
@@ -329,16 +402,26 @@ export class FileSessionStore extends InMemorySessionStore {
       try {
         const contents = await readFile(this.filePath, "utf8");
         const parsed = JSON.parse(contents) as unknown;
-        if (!Array.isArray(parsed)) throw new Error("Session store JSON must be an array");
+        if (!Array.isArray(parsed))
+          throw new Error("Session store JSON must be an array");
         this.sessions.clear();
         for (const raw of parsed) {
           if (!isRecord(raw)) continue;
-          this.sessions.set(String(raw.id), fromStoredSession(raw as StoredSession));
+          this.sessions.set(
+            String(raw.id),
+            fromStoredSession(raw as StoredSession),
+          );
         }
       } catch (error) {
-        const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined;
+        const code =
+          isRecord(error) && typeof error.code === "string"
+            ? error.code
+            : undefined;
         if (code !== "ENOENT") {
-          this.logger?.warn?.("acpx SessionStore JSON could not be read; starting with an empty store", error);
+          this.logger?.warn?.(
+            "acpx SessionStore JSON could not be read; starting with an empty store",
+            error,
+          );
         }
         this.sessions.clear();
       }
@@ -354,7 +437,10 @@ export class FileSessionStore extends InMemorySessionStore {
       try {
         handle = await open(this.lockFile, "wx");
       } catch (error) {
-        const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined;
+        const code =
+          isRecord(error) && typeof error.code === "string"
+            ? error.code
+            : undefined;
         if (code !== "EEXIST" || Date.now() > deadline) throw error;
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
@@ -393,10 +479,16 @@ export class RuntimeDbSessionStore implements SessionStore {
 
   async getByAcpxRecordId(recordId: string): Promise<SessionInfo | null> {
     await this.ensureInitialized();
-    return this.getOne("SELECT * FROM acp_sessions WHERE acpx_record_id = ?", [recordId]);
+    return this.getOne("SELECT * FROM acp_sessions WHERE acpx_record_id = ?", [
+      recordId,
+    ]);
   }
 
-  async findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null> {
+  async findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null> {
     await this.ensureInitialized();
     if (opts.name === undefined) {
       return this.getOne(
@@ -412,26 +504,39 @@ export class RuntimeDbSessionStore implements SessionStore {
 
   async list(filter?: SessionFilter): Promise<SessionInfo[]> {
     await this.ensureInitialized();
-    const sessions = (await this.getMany("SELECT * FROM acp_sessions", [])).map(cloneSession);
+    const sessions = (await this.getMany("SELECT * FROM acp_sessions", [])).map(
+      cloneSession,
+    );
     return sessions.filter((session) => matchesFilter(session, filter));
   }
 
   async update(id: string, patch: Partial<SessionInfo>): Promise<void> {
     await this.writes.enqueue(async () => {
       await this.ensureInitialized();
-      const current = await this.getOne("SELECT * FROM acp_sessions WHERE id = ?", [id]);
+      const current = await this.getOne(
+        "SELECT * FROM acp_sessions WHERE id = ?",
+        [id],
+      );
       if (!current) return;
       await this.upsert({
         ...current,
         ...patch,
-        createdAt: patch.createdAt ? new Date(patch.createdAt) : current.createdAt,
-        lastActivityAt: patch.lastActivityAt ? new Date(patch.lastActivityAt) : new Date(),
+        createdAt: patch.createdAt
+          ? new Date(patch.createdAt)
+          : current.createdAt,
+        lastActivityAt: patch.lastActivityAt
+          ? new Date(patch.lastActivityAt)
+          : new Date(),
         metadata: patch.metadata ? { ...patch.metadata } : current.metadata,
       });
     });
   }
 
-  async updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
+  async updateStatus(
+    id: string,
+    status: SessionStatus,
+    error?: string,
+  ): Promise<void> {
     const patch: Partial<SessionInfo> = { status };
     if (status === "errored") patch.lastError = error;
     await this.update(id, patch);
@@ -453,7 +558,9 @@ export class RuntimeDbSessionStore implements SessionStore {
         ["stopped", "errored", cutoff],
       );
       for (const session of stale) {
-        await this.execute("DELETE FROM acp_sessions WHERE id = ?", [session.id]);
+        await this.execute("DELETE FROM acp_sessions WHERE id = ?", [
+          session.id,
+        ]);
       }
       return stale.map((session) => session.id);
     });
@@ -479,18 +586,30 @@ export class RuntimeDbSessionStore implements SessionStore {
 
   private async execute(sql: string, params: unknown[] = []): Promise<unknown> {
     const fn = this.adapter.execute ?? this.adapter.run ?? this.adapter.query;
-    if (!fn) throw new Error("Runtime database adapter does not expose execute, run, or query");
+    if (!fn)
+      throw new Error(
+        "Runtime database adapter does not expose execute, run, or query",
+      );
     return fn.call(this.adapter, sql, params);
   }
 
-  private async getMany(sql: string, params: unknown[]): Promise<SessionInfo[]> {
+  private async getMany(
+    sql: string,
+    params: unknown[],
+  ): Promise<SessionInfo[]> {
     const fn = this.adapter.all ?? this.adapter.select ?? this.adapter.query;
-    if (!fn) throw new Error("Runtime database adapter does not expose all, select, or query");
+    if (!fn)
+      throw new Error(
+        "Runtime database adapter does not expose all, select, or query",
+      );
     const rows = normalizeRows(await fn.call(this.adapter, sql, params));
     return rows.map(rowToSession);
   }
 
-  private async getOne(sql: string, params: unknown[]): Promise<SessionInfo | null> {
+  private async getOne(
+    sql: string,
+    params: unknown[],
+  ): Promise<SessionInfo | null> {
     if (this.adapter.get) {
       const row = await this.adapter.get.call(this.adapter, sql, params);
       return row ? rowToSession(row) : null;
@@ -513,7 +632,10 @@ export class AcpSessionStore implements SessionStore {
   constructor(options: AcpSessionStoreOptions = {}) {
     const adapter = options.runtime?.databaseAdapter;
     const logger = options.runtime?.logger;
-    if ((options.backend === undefined || options.backend === "runtime-db") && isSqlDatabaseAdapter(adapter)) {
+    if (
+      (options.backend === undefined || options.backend === "runtime-db") &&
+      isSqlDatabaseAdapter(adapter)
+    ) {
       this.backend = "runtime-db";
       this.delegate = new RuntimeDbSessionStore(adapter, logger);
       return;
@@ -522,7 +644,9 @@ export class AcpSessionStore implements SessionStore {
     if (options.backend === "memory") {
       this.backend = "memory";
       this.delegate = new InMemorySessionStore();
-      logger?.warn?.("acpx SessionStore is using in-memory storage; sessions will not persist across restarts");
+      logger?.warn?.(
+        "acpx SessionStore is using in-memory storage; sessions will not persist across restarts",
+      );
       return;
     }
 
@@ -534,7 +658,10 @@ export class AcpSessionStore implements SessionStore {
     } catch (error) {
       this.backend = "memory";
       this.delegate = new InMemorySessionStore();
-      logger?.warn?.("acpx SessionStore could not initialize file storage; sessions will not persist across restarts", error);
+      logger?.warn?.(
+        "acpx SessionStore could not initialize file storage; sessions will not persist across restarts",
+        error,
+      );
     }
   }
 
@@ -550,7 +677,11 @@ export class AcpSessionStore implements SessionStore {
     return this.delegate.getByAcpxRecordId(recordId);
   }
 
-  findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null> {
+  findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null> {
     return this.delegate.findByScope(opts);
   }
 
@@ -562,7 +693,11 @@ export class AcpSessionStore implements SessionStore {
     return this.delegate.update(id, patch);
   }
 
-  updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
+  updateStatus(
+    id: string,
+    status: SessionStatus,
+    error?: string,
+  ): Promise<void> {
     return this.delegate.updateStatus(id, status, error);
   }
 
@@ -575,4 +710,9 @@ export class AcpSessionStore implements SessionStore {
   }
 }
 
-export { type SessionFilter, type SessionInfo, type SessionStatus, type SessionStore } from "./types.js";
+export type {
+  SessionFilter,
+  SessionInfo,
+  SessionStatus,
+  SessionStore,
+} from "./types.js";

@@ -1,6 +1,17 @@
-export type AgentType = "claude" | "codex" | "gemini" | "aider" | "pi" | "shell" | string;
+export type AgentType =
+  | "claude"
+  | "codex"
+  | "gemini"
+  | "aider"
+  | "pi"
+  | "shell"
+  | string;
 
-export type ApprovalPreset = "readonly" | "standard" | "permissive" | "autonomous";
+export type ApprovalPreset =
+  | "readonly"
+  | "standard"
+  | "permissive"
+  | "autonomous";
 
 export type SessionStatus =
   | "running"
@@ -33,7 +44,10 @@ export type SessionEventCallback = (
   data: unknown,
 ) => void;
 
-export type AcpEventCallback = (event: AcpJsonRpcMessage, sessionId?: string) => void;
+export type AcpEventCallback = (
+  event: AcpJsonRpcMessage,
+  sessionId?: string,
+) => void;
 
 export interface SpawnOptions {
   name?: string;
@@ -90,7 +104,10 @@ export interface AvailableAgentInfo {
   installed: boolean;
   installCommand?: string;
   docsUrl?: string;
-  auth?: { status?: "authenticated" | "unauthenticated" | "unknown" | string; detail?: string };
+  auth?: {
+    status?: "authenticated" | "unauthenticated" | "unknown" | string;
+    detail?: string;
+  };
 }
 
 export interface SessionInfo {
@@ -123,10 +140,18 @@ export interface SessionStore {
   create(session: SessionInfo): Promise<void>;
   get(id: string): Promise<SessionInfo | null>;
   getByAcpxRecordId(recordId: string): Promise<SessionInfo | null>;
-  findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null>;
+  findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null>;
   list(filter?: SessionFilter): Promise<SessionInfo[]>;
   update(id: string, patch: Partial<SessionInfo>): Promise<void>;
-  updateStatus(id: string, status: SessionStatus, error?: string): Promise<void>;
+  updateStatus(
+    id: string,
+    status: SessionStatus,
+    error?: string,
+  ): Promise<void>;
   delete(id: string): Promise<void>;
   sweepStale(maxAgeMs: number): Promise<string[]>;
 }
@@ -177,6 +202,12 @@ export type AcpJsonRpcMessage = AcpJsonRpcAnyMessage;
 export interface AcpToolCall {
   id?: string;
   title?: string;
-  status?: "pending" | "running" | "completed" | "failed" | "cancelled" | string;
+  status?:
+    | "pending"
+    | "running"
+    | "completed"
+    | "failed"
+    | "cancelled"
+    | string;
   output?: string;
 }

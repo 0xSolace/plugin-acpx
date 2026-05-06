@@ -6,6 +6,7 @@ import {
   errorResult,
   failureMessage,
   getAcpService,
+  type HandlerOptionsLike,
   hasExplicitPayload,
   isAuthError,
   logger,
@@ -16,8 +17,6 @@ import {
   pickBoolean,
   pickString,
   setCurrentSession,
-  shortId,
-  type HandlerOptionsLike,
 } from "./common.js";
 
 export const spawnAgentAction = {
@@ -41,17 +40,35 @@ export const spawnAgentAction = {
     { name: "task", required: false, schema: { type: "string" } },
     { name: "workdir", required: false, schema: { type: "string" } },
     { name: "memoryContent", required: false, schema: { type: "string" } },
-    { name: "approvalPreset", required: false, schema: { type: "string", enum: ["readonly", "standard", "permissive", "autonomous"] } },
-    { name: "keepAliveAfterComplete", required: false, schema: { type: "boolean" } },
+    {
+      name: "approvalPreset",
+      required: false,
+      schema: {
+        type: "string",
+        enum: ["readonly", "standard", "permissive", "autonomous"],
+      },
+    },
+    {
+      name: "keepAliveAfterComplete",
+      required: false,
+      schema: { type: "boolean" },
+    },
   ],
   validate: async (runtime, message) => {
     if (!getAcpService(runtime)) return false;
-    if (hasExplicitPayload(message, ["task", "workdir", "agentType"])) return true;
+    if (hasExplicitPayload(message, ["task", "workdir", "agentType"]))
+      return true;
     const text = messageText(message);
     if (!text.trim()) return true;
     return looksLikeTaskAgentRequest(text);
   },
-  handler: async (runtime, message, state, options, callback): Promise<ActionResult> => {
+  handler: async (
+    runtime,
+    message,
+    state,
+    options,
+    callback,
+  ): Promise<ActionResult> => {
     const service = getAcpService(runtime);
     if (!service) {
       const text = "PTY Service is not available. Cannot spawn a task agent.";
@@ -65,11 +82,22 @@ export const spawnAgentAction = {
       const text = messageText(message);
       const task = pickString(params, content, "task") ?? text;
       const explicitAgentType = pickString(params, content, "agentType");
-      const agentType = (explicitAgentType ?? (await service.resolveAgentType?.({ task, workdir: pickString(params, content, "workdir") })) ?? "codex") as AgentType;
+      const agentType = (explicitAgentType ??
+        (await service.resolveAgentType?.({
+          task,
+          workdir: pickString(params, content, "workdir"),
+        })) ??
+        "codex") as AgentType;
       const workdir = pickString(params, content, "workdir") ?? process.cwd();
       const memoryContent = pickString(params, content, "memoryContent");
-      const approvalPreset = parseApproval(pickString(params, content, "approvalPreset"));
-      const keepAliveAfterComplete = pickBoolean(params, content, "keepAliveAfterComplete");
+      const approvalPreset = parseApproval(
+        pickString(params, content, "approvalPreset"),
+      );
+      const keepAliveAfterComplete = pickBoolean(
+        params,
+        content,
+        "keepAliveAfterComplete",
+      );
       const label = pickString(params, content, "label") ?? task.slice(0, 80);
 
       const session = await service.spawnSession({
@@ -90,7 +118,11 @@ export const spawnAgentAction = {
       });
 
       setCurrentSession(state, session);
-      logger(runtime).info?.("Spawned acpx task agent", { sessionId: session.sessionId, agentType: session.agentType, workdir: session.workdir });
+      logger(runtime).info?.("Spawned acpx task agent", {
+        sessionId: session.sessionId,
+        agentType: session.agentType,
+        workdir: session.workdir,
+      });
 
       return {
         success: true,
@@ -106,8 +138,15 @@ export const spawnAgentAction = {
       };
     } catch (error) {
       const messageTextValue = failureMessage(error);
-      const code = isAuthError(error) ? "INVALID_CREDENTIALS" : messageTextValue;
-      await callbackText(callback, isAuthError(error) ? "Invalid credentials for task agent." : `Failed to spawn agent: ${messageTextValue}`);
+      const code = isAuthError(error)
+        ? "INVALID_CREDENTIALS"
+        : messageTextValue;
+      await callbackText(
+        callback,
+        isAuthError(error)
+          ? "Invalid credentials for task agent."
+          : `Failed to spawn agent: ${messageTextValue}`,
+      );
       return { success: false, error: code };
     }
   },

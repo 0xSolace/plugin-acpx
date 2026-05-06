@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -23,7 +23,12 @@ import type {
 } from "./types.js";
 
 type RuntimeLike = IAgentRuntime & {
-  logger?: Partial<Record<"debug" | "info" | "warn" | "error", (message: string, data?: unknown) => void>>;
+  logger?: Partial<
+    Record<
+      "debug" | "info" | "warn" | "error",
+      (message: string, data?: unknown) => void
+    >
+  >;
   services?: Map<string, unknown[]>;
   getSetting?: (key: string) => string | undefined | null;
 };
@@ -113,10 +118,12 @@ export class AcpService {
       this.setting("ELIZA_ACP_AGENT_SELECTION_STRATEGY") ??
       this.setting("PARALLAX_AGENT_SELECTION_STRATEGY") ??
       "fixed";
-    this.maxSessions = parsePositiveInt(this.setting("ELIZA_ACP_MAX_SESSIONS")) ?? 8;
+    this.maxSessions =
+      parsePositiveInt(this.setting("ELIZA_ACP_MAX_SESSIONS")) ?? 8;
     this.sessionTimeoutMs = parsePositiveInt(
       // Public parity-spec name first; SESSION kept for backward compatibility with early drafts.
-      this.setting("ELIZA_ACP_PROMPT_TIMEOUT_MS") ?? this.setting("ELIZA_ACP_SESSION_TIMEOUT_MS"),
+      this.setting("ELIZA_ACP_PROMPT_TIMEOUT_MS") ??
+        this.setting("ELIZA_ACP_SESSION_TIMEOUT_MS"),
     );
   }
 
@@ -124,7 +131,10 @@ export class AcpService {
     const service = new AcpService(runtime);
     await service.start();
     const servicesMap = runtime.services as Map<string, unknown[]> | undefined;
-    if (servicesMap && process.env.ELIZA_ACP_REGISTER_AS_PTY_SERVICE !== "false") {
+    if (
+      servicesMap &&
+      process.env.ELIZA_ACP_REGISTER_AS_PTY_SERVICE !== "false"
+    ) {
       const existing = servicesMap.get(AcpService.compatType);
       if (!existing || existing.length === 0) {
         servicesMap.set(AcpService.compatType, [service]);
@@ -181,7 +191,12 @@ export class AcpService {
     };
     await this.store.create(session);
 
-    const args = this.baseArgs({ workdir, approvalPreset, timeoutMs: opts.timeoutMs, model: opts.model });
+    const args = this.baseArgs({
+      workdir,
+      approvalPreset,
+      timeoutMs: opts.timeoutMs,
+      model: opts.model,
+    });
     args.push(agentType, "sessions", "new", "--name", name);
     const result = await this.runAcpx({
       sessionId: id,
@@ -189,13 +204,22 @@ export class AcpService {
       agentType,
       workdir,
       args,
-      env: this.buildEnv(opts.env, opts.customCredentials, opts.model, agentType),
+      env: this.buildEnv(
+        opts.env,
+        opts.customCredentials,
+        opts.model,
+        agentType,
+      ),
     });
 
     if (result.code !== 0) {
       const message = this.classifyExitError(result.code, result.stderr);
       await this.store.updateStatus(id, "error", message);
-      this.emitSessionEvent(id, "error", { message, exitCode: result.code, stderr: result.stderr });
+      this.emitSessionEvent(id, "error", {
+        message,
+        exitCode: result.code,
+        stderr: result.stderr,
+      });
       throw new Error(message);
     }
 
@@ -205,10 +229,18 @@ export class AcpService {
       lastActivityAt: new Date(),
     };
     await this.store.update(id, readyPatch);
-    this.emitSessionEvent(id, "ready", { sessionId: id, name, agentType, workdir });
+    this.emitSessionEvent(id, "ready", {
+      sessionId: id,
+      name,
+      agentType,
+      workdir,
+    });
 
     if (opts.initialTask?.trim()) {
-      void this.sendPrompt(id, opts.initialTask, { timeoutMs: opts.timeoutMs, model: opts.model }).catch((err: unknown) => {
+      void this.sendPrompt(id, opts.initialTask, {
+        timeoutMs: opts.timeoutMs,
+        model: opts.model,
+      }).catch((err: unknown) => {
         this.log("error", "initial prompt failed", {
           sessionId: id,
           agentType,
@@ -224,7 +256,11 @@ export class AcpService {
     return toSpawnResult(updated ?? fallback);
   }
 
-  async sendPrompt(sessionId: string, text: string, opts: SendOptions = {}): Promise<PromptResult> {
+  async sendPrompt(
+    sessionId: string,
+    text: string,
+    opts: SendOptions = {},
+  ): Promise<PromptResult> {
     this.ensureStarted();
     const session = await this.requireSession(sessionId);
     const startedAt = Date.now();
@@ -235,7 +271,13 @@ export class AcpService {
       timeoutMs: opts.timeoutMs ?? this.sessionTimeoutMs,
       model: opts.model,
     });
-    args.push(session.agentType, "prompt", "-s", session.name ?? session.id, text);
+    args.push(
+      session.agentType,
+      "prompt",
+      "-s",
+      session.name ?? session.id,
+      text,
+    );
 
     const result = await this.runAcpx({
       sessionId,
@@ -250,7 +292,8 @@ export class AcpService {
       activeForSession: true,
     });
 
-    const stopReason = result.stopReason ?? (result.code === 0 ? "end_turn" : "error");
+    const stopReason =
+      result.stopReason ?? (result.code === 0 ? "end_turn" : "error");
     const promptResult: PromptResult = {
       sessionId,
       response: result.finalText,
@@ -259,15 +302,21 @@ export class AcpService {
       durationMs: result.durationMs || Date.now() - startedAt,
       exitCode: result.code,
       signal: result.signal,
-      ...(result.code !== 0 ? { error: this.classifyExitError(result.code, result.stderr) } : {}),
+      ...(result.code !== 0
+        ? { error: this.classifyExitError(result.code, result.stderr) }
+        : {}),
     };
 
     if (result.code === 0 && stopReason !== "error") {
-      await this.store.update(sessionId, { status: "ready", lastActivityAt: new Date() });
+      await this.store.update(sessionId, {
+        status: "ready",
+        lastActivityAt: new Date(),
+      });
       return promptResult;
     }
 
-    const message = promptResult.error ?? `acpx prompt failed with stopReason ${stopReason}`;
+    const message =
+      promptResult.error ?? `acpx prompt failed with stopReason ${stopReason}`;
     await this.store.updateStatus(sessionId, "error", message);
     this.emitSessionEvent(sessionId, "error", {
       message,
@@ -283,8 +332,18 @@ export class AcpService {
     if (active) {
       this.terminateProcess(sessionId, active);
     } else {
-      const args = [session.agentType, "cancel", "-s", session.name ?? session.id];
-      await this.runAcpx({ sessionId, agentType: session.agentType, workdir: session.workdir, args });
+      const args = [
+        session.agentType,
+        "cancel",
+        "-s",
+        session.name ?? session.id,
+      ];
+      await this.runAcpx({
+        sessionId,
+        agentType: session.agentType,
+        workdir: session.workdir,
+        args,
+      });
     }
     await this.store.updateStatus(sessionId, "stopped");
   }
@@ -292,28 +351,50 @@ export class AcpService {
   async closeSession(sessionId: string): Promise<void> {
     const session = await this.requireSession(sessionId);
     await this.stopTrackedProcess(sessionId);
-    const args = ["--format", "json", "--cwd", session.workdir, session.agentType, "sessions", "close", session.name ?? session.id];
-    await this.runAcpx({ sessionId, agentType: session.agentType, workdir: session.workdir, args });
+    const args = [
+      "--format",
+      "json",
+      "--cwd",
+      session.workdir,
+      session.agentType,
+      "sessions",
+      "close",
+      session.name ?? session.id,
+    ];
+    await this.runAcpx({
+      sessionId,
+      agentType: session.agentType,
+      workdir: session.workdir,
+      args,
+    });
     await this.store.updateStatus(sessionId, "stopped");
-    this.emitSessionEvent(sessionId, "stopped", { sessionId, response: this.lastOutput(sessionId) });
+    this.emitSessionEvent(sessionId, "stopped", {
+      sessionId,
+      response: this.lastOutput(sessionId),
+    });
   }
 
   async deleteSession(sessionId: string): Promise<void> {
     await this.closeSession(sessionId).catch((err: unknown) => {
-      this.log("warn", "deleteSession close failed", { sessionId, error: errorMessage(err) });
+      this.log("warn", "deleteSession close failed", {
+        sessionId,
+        error: errorMessage(err),
+      });
     });
     await this.store.delete(sessionId);
     this.outputBuffers.delete(sessionId);
   }
 
   listSessions(): SessionInfo[] {
-    if (this.store instanceof InMemorySessionStore) return this.store.listSync();
+    if (this.store instanceof InMemorySessionStore)
+      return this.store.listSync();
     // TODO(W4): clarify with W6 whether compatibility callers can accept async list fallback.
     return [];
   }
 
   getSession(sessionId: string): SessionInfo | undefined {
-    if (this.store instanceof InMemorySessionStore) return this.store.getSync(sessionId) ?? undefined;
+    if (this.store instanceof InMemorySessionStore)
+      return this.store.getSync(sessionId) ?? undefined;
     return undefined;
   }
 
@@ -346,8 +427,13 @@ export class AcpService {
       approvalPreset: session.approvalPreset,
       metadata: { ...session.metadata, reattachedFrom: session.id },
     });
-    await this.store.update(sessionId, { status: "stopped", lastActivityAt: new Date() });
-    this.emitSessionEvent(respawn.sessionId, "reconnected", { previousSessionId: sessionId });
+    await this.store.update(sessionId, {
+      status: "stopped",
+      lastActivityAt: new Date(),
+    });
+    this.emitSessionEvent(respawn.sessionId, "reconnected", {
+      previousSessionId: sessionId,
+    });
     return respawn;
   }
 
@@ -362,7 +448,9 @@ export class AcpService {
 
   async checkAvailableAgents(types?: string[]): Promise<AvailableAgentInfo[]> {
     const available = await this.getAvailableAgents();
-    return types?.length ? available.filter((a) => types.includes(String(a.agentType))) : available;
+    return types?.length
+      ? available.filter((a) => types.includes(String(a.agentType)))
+      : available;
   }
 
   async resolveAgentType(): Promise<string> {
@@ -381,7 +469,10 @@ export class AcpService {
     await this.closeSession(sessionId);
   }
 
-  subscribeToOutput(sessionId: string, callback: (data: string) => void): () => void {
+  subscribeToOutput(
+    sessionId: string,
+    callback: (data: string) => void,
+  ): () => void {
     for (const line of this.outputBuffers.get(sessionId) ?? []) callback(line);
     return () => undefined;
   }
@@ -396,8 +487,16 @@ export class AcpService {
     timeoutMs?: number;
     model?: string;
   }): string[] {
-    const args = ["--format", "json", "--cwd", opts.workdir, ...approvalArgs(opts.approvalPreset), "--no-terminal"];
-    if (opts.timeoutMs && opts.timeoutMs > 0) args.push("--timeout", String(opts.timeoutMs / 1000));
+    const args = [
+      "--format",
+      "json",
+      "--cwd",
+      opts.workdir,
+      ...approvalArgs(opts.approvalPreset),
+      "--no-terminal",
+    ];
+    if (opts.timeoutMs && opts.timeoutMs > 0)
+      args.push("--timeout", String(opts.timeoutMs / 1000));
     if (opts.model) args.push("--model", opts.model);
     return args;
   }
@@ -412,8 +511,15 @@ export class AcpService {
         env: this.buildEnv(opts.env),
         stdio: ["pipe", "pipe", "pipe"],
       });
-      const record: ProcessRecord = { proc, stderr: "", stdoutBuffer: "", killedByService: false, exited: false };
-      if (opts.activeForSession && opts.sessionId) this.activeProcesses.set(opts.sessionId, record);
+      const record: ProcessRecord = {
+        proc,
+        stderr: "",
+        stdoutBuffer: "",
+        killedByService: false,
+        exited: false,
+      };
+      if (opts.activeForSession && opts.sessionId)
+        this.activeProcesses.set(opts.sessionId, record);
 
       proc.stdout.on("data", (chunk: Buffer) => {
         record.stdoutBuffer += chunk.toString("utf8");
@@ -424,7 +530,12 @@ export class AcpService {
           if (line) {
             const parsed = this.parseNdjson(line, opts.sessionId);
             if (parsed) {
-              const handled = this.handleAcpEvent(parsed, opts.sessionId, finalText, startedAt);
+              const handled = this.handleAcpEvent(
+                parsed,
+                opts.sessionId,
+                finalText,
+                startedAt,
+              );
               finalText = handled.finalText;
               stopReason = handled.stopReason ?? stopReason;
             }
@@ -442,21 +553,36 @@ export class AcpService {
         if (err.code === "ENOENT") {
           const message = `acpx CLI not found at ${this.cliPath}. Set ELIZA_ACP_CLI or npm install -g acpx@latest.`;
           record.stderr = capStderr(`${record.stderr}\n${message}`);
-          if (opts.sessionId) this.emitSessionEvent(opts.sessionId, "error", { message, failureKind: "not_found" });
+          if (opts.sessionId)
+            this.emitSessionEvent(opts.sessionId, "error", {
+              message,
+              failureKind: "not_found",
+            });
         }
       });
 
       proc.on("close", (code, signal) => {
         record.exited = true;
         if (record.stdoutBuffer.trim()) {
-          const parsed = this.parseNdjson(record.stdoutBuffer.trim(), opts.sessionId);
+          const parsed = this.parseNdjson(
+            record.stdoutBuffer.trim(),
+            opts.sessionId,
+          );
           if (parsed) {
-            const handled = this.handleAcpEvent(parsed, opts.sessionId, finalText, startedAt);
+            const handled = this.handleAcpEvent(
+              parsed,
+              opts.sessionId,
+              finalText,
+              startedAt,
+            );
             finalText = handled.finalText;
             stopReason = handled.stopReason ?? stopReason;
           }
         }
-        if (opts.sessionId && this.activeProcesses.get(opts.sessionId) === record) {
+        if (
+          opts.sessionId &&
+          this.activeProcesses.get(opts.sessionId) === record
+        ) {
           this.activeProcesses.delete(opts.sessionId);
         }
         if (record.killTimer) clearTimeout(record.killTimer);
@@ -467,9 +593,21 @@ export class AcpService {
           });
         }
         if (opts.sessionId && opts.activeForSession) {
-          this.emitSessionEvent(opts.sessionId, "stopped", { sessionId: opts.sessionId, response: finalText, exitCode: code, signal });
+          this.emitSessionEvent(opts.sessionId, "stopped", {
+            sessionId: opts.sessionId,
+            response: finalText,
+            exitCode: code,
+            signal,
+          });
         }
-        resolveRun({ code, signal, stderr: record.stderr, finalText, stopReason, durationMs: Date.now() - startedAt });
+        resolveRun({
+          code,
+          signal,
+          stderr: record.stderr,
+          finalText,
+          stopReason,
+          durationMs: Date.now() - startedAt,
+        });
       });
 
       if (opts.timeoutMs && opts.timeoutMs > 0) {
@@ -480,11 +618,17 @@ export class AcpService {
     });
   }
 
-  private parseNdjson(line: string, sessionId?: string): AcpJsonRpcMessage | null {
+  private parseNdjson(
+    line: string,
+    sessionId?: string,
+  ): AcpJsonRpcMessage | null {
     try {
       return JSON.parse(line) as AcpJsonRpcMessage;
     } catch {
-      this.log("warn", "malformed acpx NDJSON line ignored", { sessionId, line: line.slice(0, 200) });
+      this.log("warn", "malformed acpx NDJSON line ignored", {
+        sessionId,
+        line: line.slice(0, 200),
+      });
       return null;
     }
   }
@@ -508,33 +652,56 @@ export class AcpService {
     const updateBlock = asRecord(params?.update) ?? params;
     const sessionUpdate = updateBlock?.sessionUpdate ?? params?.sessionUpdate;
 
-    if (sessionId && (method === "session_started" || sessionUpdate === "session_started")) {
+    if (
+      sessionId &&
+      (method === "session_started" || sessionUpdate === "session_started")
+    ) {
       this.emitSessionEvent(sessionId, "ready", { event });
     }
 
     if (sessionId && method === "permission/request") {
-      const description = stringifyMaybe(params?.description ?? params?.message ?? "permission required");
-      this.emitSessionEvent(sessionId, "blocked", { message: description, request: params });
-      if (isAuthText(description)) this.emitSessionEvent(sessionId, "login_required", { message: description, request: params });
+      const description = stringifyMaybe(
+        params?.description ?? params?.message ?? "permission required",
+      );
+      this.emitSessionEvent(sessionId, "blocked", {
+        message: description,
+        request: params,
+      });
+      if (isAuthText(description))
+        this.emitSessionEvent(sessionId, "login_required", {
+          message: description,
+          request: params,
+        });
       void this.store.updateStatus(sessionId, "blocked").catch(() => undefined);
     }
 
     if (sessionId && method === "session/update") {
       // agent_message_chunk: content.text streams
       const content = asRecord(updateBlock?.content);
-      if (sessionUpdate === "agent_message_chunk" && content?.type === "text" && typeof content.text === "string") {
+      if (
+        sessionUpdate === "agent_message_chunk" &&
+        content?.type === "text" &&
+        typeof content.text === "string"
+      ) {
         finalText += content.text;
         this.appendOutput(sessionId, content.text);
         this.emitSessionEvent(sessionId, "message", { text: content.text });
       }
       // Legacy/other adapters may put text directly at content level (no agent_message_chunk wrapper)
-      else if (!sessionUpdate && content?.type === "text" && typeof content.text === "string") {
+      else if (
+        !sessionUpdate &&
+        content?.type === "text" &&
+        typeof content.text === "string"
+      ) {
         finalText += content.text;
         this.appendOutput(sessionId, content.text);
         this.emitSessionEvent(sessionId, "message", { text: content.text });
       }
       // tool_call: emit tool_running while in_progress; ignore in_progress -> failed/completed transitions don't need re-emit
-      if (sessionUpdate === "tool_call" || sessionUpdate === "tool_call_update") {
+      if (
+        sessionUpdate === "tool_call" ||
+        sessionUpdate === "tool_call_update"
+      ) {
         const status = stringifyMaybe(updateBlock?.status);
         const toolCall: AcpToolCall = {
           id: stringifyMaybe(updateBlock?.toolCallId ?? updateBlock?.id) ?? "",
@@ -544,7 +711,9 @@ export class AcpService {
         };
         if (status === "in_progress" || status === "running") {
           this.emitSessionEvent(sessionId, "tool_running", { toolCall });
-          void this.store.updateStatus(sessionId, "tool_running").catch(() => undefined);
+          void this.store
+            .updateStatus(sessionId, "tool_running")
+            .catch(() => undefined);
         }
       }
       // usage_update is informational; we don't currently surface it but could log
@@ -560,24 +729,37 @@ export class AcpService {
           stopReason,
         });
       } else if (stopReason === "error") {
-        this.emitSessionEvent(sessionId, "error", { message: "acpx prompt ended with stopReason error", stopReason });
+        this.emitSessionEvent(sessionId, "error", {
+          message: "acpx prompt ended with stopReason error",
+          stopReason,
+        });
       }
     }
 
     if (sessionId && event.error && typeof event.error === "object") {
-      const message = errorMessage((event.error as { message?: unknown }).message ?? event.error);
+      const message = errorMessage(
+        (event.error as { message?: unknown }).message ?? event.error,
+      );
       this.emitSessionEvent(sessionId, "error", { message });
     }
 
     return { finalText, stopReason };
   }
 
-  private emitSessionEvent(sessionId: string, event: SessionEventName, data: unknown): void {
+  private emitSessionEvent(
+    sessionId: string,
+    event: SessionEventName,
+    data: unknown,
+  ): void {
     for (const callback of [...this.sessionCallbacks]) {
       try {
         callback(sessionId, event, data);
       } catch (err) {
-        this.log("warn", "session event callback failed", { sessionId, event, error: errorMessage(err) });
+        this.log("warn", "session event callback failed", {
+          sessionId,
+          event,
+          error: errorMessage(err),
+        });
       }
     }
   }
@@ -590,18 +772,23 @@ export class AcpService {
 
   private async enforceSessionLimit(): Promise<void> {
     const sessions = await this.store.list();
-    const active = sessions.filter((s) => !["stopped", "error", "errored", "completed"].includes(s.status));
-    if (active.length >= this.maxSessions) throw new Error(`acpx max session limit reached (${this.maxSessions})`);
+    const active = sessions.filter(
+      (s) => !["stopped", "error", "errored", "completed"].includes(s.status),
+    );
+    if (active.length >= this.maxSessions)
+      throw new Error(`acpx max session limit reached (${this.maxSessions})`);
   }
 
   private async stopTrackedProcess(sessionId: string): Promise<void> {
     const active = this.activeProcesses.get(sessionId);
     if (!active) return;
     this.terminateProcess(sessionId, active);
-    await new Promise<void>((resolveStop) => active.proc.once("close", () => resolveStop()));
+    await new Promise<void>((resolveStop) =>
+      active.proc.once("close", () => resolveStop()),
+    );
   }
 
-  private terminateProcess(sessionId: string, record: ProcessRecord): void {
+  private terminateProcess(_sessionId: string, record: ProcessRecord): void {
     record.killedByService = true;
     if (!record.exited) record.proc.kill("SIGTERM");
     record.killTimer = setTimeout(() => {
@@ -636,8 +823,10 @@ export class AcpService {
   }
 
   private classifyExitError(code: number | null, stderr: string): string {
-    if (code === 1 && isAuthText(stderr)) return "acpx auth failed. Re-authenticate the selected agent or set ACPX_AUTH_* credentials.";
-    if (code === 4) return "acpx session was not found. This is likely an internal session bookkeeping error.";
+    if (code === 1 && isAuthText(stderr))
+      return "acpx auth failed. Re-authenticate the selected agent or set ACPX_AUTH_* credentials.";
+    if (code === 4)
+      return "acpx session was not found. This is likely an internal session bookkeeping error.";
     if (code === 5) return "acpx permission denied.";
     if (code === 3) return "acpx prompt timed out.";
     if (stderr.trim()) return stderr.trim().slice(0, 500);
@@ -657,7 +846,8 @@ export class AcpService {
 
   private setting(key: string): string | undefined {
     const fromRuntime = this.runtime.getSetting?.(key);
-    if (typeof fromRuntime === "string" && fromRuntime.length > 0) return fromRuntime;
+    if (typeof fromRuntime === "string" && fromRuntime.length > 0)
+      return fromRuntime;
     const fromEnv = process.env[key];
     return fromEnv && fromEnv.length > 0 ? fromEnv : undefined;
   }
@@ -666,8 +856,14 @@ export class AcpService {
     if (!this.started) throw new Error("AcpService not started");
   }
 
-  private log(level: "debug" | "info" | "warn" | "error", message: string, data?: unknown): void {
-    const loggerFn = this.logger[level] as ((message: string, data?: unknown) => void) | undefined;
+  private log(
+    level: "debug" | "info" | "warn" | "error",
+    message: string,
+    data?: unknown,
+  ): void {
+    const loggerFn = this.logger[level] as
+      | ((message: string, data?: unknown) => void)
+      | undefined;
     loggerFn?.call(this.logger, `[AcpService] ${message}`, data);
   }
 }
@@ -697,9 +893,17 @@ class InMemorySessionStore implements SessionStore {
     return null;
   }
 
-  async findByScope(opts: { workdir: string; agentType: string; name?: string }): Promise<SessionInfo | null> {
+  async findByScope(opts: {
+    workdir: string;
+    agentType: string;
+    name?: string;
+  }): Promise<SessionInfo | null> {
     for (const session of this.sessions.values()) {
-      if (session.workdir === opts.workdir && session.agentType === opts.agentType && session.name === opts.name) {
+      if (
+        session.workdir === opts.workdir &&
+        session.agentType === opts.agentType &&
+        session.name === opts.name
+      ) {
         return cloneSession(session);
       }
     }
@@ -720,10 +924,19 @@ class InMemorySessionStore implements SessionStore {
     this.sessions.set(id, { ...current, ...patch });
   }
 
-  async updateStatus(id: string, status: SessionStatus, error?: string): Promise<void> {
+  async updateStatus(
+    id: string,
+    status: SessionStatus,
+    error?: string,
+  ): Promise<void> {
     const current = this.sessions.get(id);
     if (!current) return;
-    this.sessions.set(id, { ...current, status, lastError: error, lastActivityAt: new Date() });
+    this.sessions.set(id, {
+      ...current,
+      status,
+      lastError: error,
+      lastActivityAt: new Date(),
+    });
   }
 
   async delete(id: string): Promise<void> {
@@ -751,6 +964,7 @@ function approvalArgs(preset: ApprovalPreset): string[] {
     case "readonly":
       return ["--deny-all"];
     case "standard":
+      return ["--approve-reads", "--non-interactive-permissions", "deny"];
     default:
       return ["--approve-reads", "--non-interactive-permissions", "deny"];
   }
@@ -758,9 +972,24 @@ function approvalArgs(preset: ApprovalPreset): string[] {
 
 function normalizeApprovalPreset(value: string | undefined): ApprovalPreset {
   const normalized = value?.trim().toLowerCase();
-  if (normalized === "readonly" || normalized === "read-only" || normalized === "deny-all") return "readonly";
-  if (normalized === "standard" || normalized === "auto" || normalized === "default") return "standard";
-  if (normalized === "permissive" || normalized === "approve-all" || normalized === "full-access") return "permissive";
+  if (
+    normalized === "readonly" ||
+    normalized === "read-only" ||
+    normalized === "deny-all"
+  )
+    return "readonly";
+  if (
+    normalized === "standard" ||
+    normalized === "auto" ||
+    normalized === "default"
+  )
+    return "standard";
+  if (
+    normalized === "permissive" ||
+    normalized === "approve-all" ||
+    normalized === "full-access"
+  )
+    return "permissive";
   if (normalized === "autonomous") return "autonomous";
   return "autonomous";
 }
@@ -801,11 +1030,16 @@ function extractSessionId(event: AcpJsonRpcMessage): string | undefined {
     result?.acpxSessionId,
     (event as Record<string, unknown>).sessionId,
   ];
-  return candidates.find((candidate): candidate is string => typeof candidate === "string" && candidate.length > 0);
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && candidate.length > 0,
+  );
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : undefined;
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : undefined;
 }
 
 function stringifyMaybe(value: unknown): string {
@@ -813,7 +1047,9 @@ function stringifyMaybe(value: unknown): string {
 }
 
 function isAuthText(text: string): boolean {
-  return /authenticate|unauthorized|\b401\b|login|required auth|api key|invalid_grant/i.test(text);
+  return /authenticate|unauthorized|\b401\b|login|required auth|api key|invalid_grant/i.test(
+    text,
+  );
 }
 
 function capStderr(text: string): string {
