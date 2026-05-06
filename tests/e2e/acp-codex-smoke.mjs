@@ -44,7 +44,7 @@ console.log("  sessionId:", r.sessionId.slice(0, 8));
 console.log("=== sending prompt ===");
 const promptResult = await svc.sendPrompt(
   r.sessionId,
-  "what is 7 plus 8? respond with just the number, nothing else."
+  "what is 7 plus 8? respond with just the number, nothing else.",
 );
 console.log("  stopReason:", promptResult.stopReason);
 console.log("  durationMs:", promptResult.durationMs);
@@ -57,7 +57,11 @@ console.log("\n=== verdict ===");
 console.log("  task_complete events:", completes.length);
 console.log("  response contains '15':", responseValid);
 
-if (completes.length > 0 && responseValid && promptResult.stopReason === "end_turn") {
+if (
+  completes.length > 0 &&
+  responseValid &&
+  promptResult.stopReason === "end_turn"
+) {
   console.log("\n✓ E2E SMOKE PASSED");
   process.exit(0);
 } else {

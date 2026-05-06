@@ -1,124 +1,140 @@
 # @0xsolace/plugin-acpx
 
-ElizaOS plugin: acpx-backed task and subagent backend (wraps the `acpx` CLI to spawn coding agents). Sibling, not replacement, for `@elizaos/plugin-agent-orchestrator`. Distinct from `@elizaos/plugin-acp` (Shaw's ACP gateway client).
+ElizaOS plugin: an acpx-backed task and subagent backend that wraps the `acpx` CLI to spawn coding agents as local subprocesses.
 
-Drop-in compatible with `@elizaos/plugin-agent-orchestrator` (PTY-based). Uses
-ACPX (Agent Client Protocol CLI) under the hood for structured streaming,
-named sessions, cooperative cancel, and crash-resilient sessions.
+`plugin-acpx` is a sibling transport to `@elizaos/plugin-agent-orchestrator`. It keeps the familiar task-agent action surface, but uses Agent Client Protocol JSON-RPC events instead of PTY scraping. It is also distinct from `@elizaos/plugin-acp`, which is Shaw's ACP gateway client for IDE bridge flows.
+
+## 0.1.0 reality
+
+Status: stable release prep complete for `0.1.0`.
+
+This package now implements the full v0.1 task-agent backend:
+
+- acpx CLI subprocess integration
+- codex, claude, gemini, and acpx adapter selection support
+- parallel coding-agent sessions
+- JSON-RPC / NDJSON event parsing
+- message, tool, blocked, auth, completion, error, stopped, and reconnect session events
+- cooperative cancel and stop paths
+- runtime SQL, file, or memory-backed session persistence
+- plugin-agent-orchestrator-compatible action result shapes
+- `PTY_SERVICE` compatibility alias, enabled by default
+- unit tests plus a real acpx + codex e2e smoke script
+
+## Product framing
+
+Eliza is the IDE, not the code agent.
+
+The runtime coordinates intent, sessions, context, memory, and user-facing actions. The actual code-writing capability stays in the dedicated coding-agent CLIs, such as codex, claude, or gemini, launched through acpx. That boundary keeps Eliza from becoming a fragile terminal emulator while still giving it a clean, typed task execution backend.
 
 ## Why this exists
 
-`plugin-agent-orchestrator` (sibling, PTY-based) maintains an entire
-stall-classifier, ANSI-stripping, prompt-regex-dismissal, pty-state-capture
-stack to extract structure out of terminal byte streams. The Agent Client Protocol (ACP) is the structured
-protocol underneath, `tool_call`, `thinking`, `diff`, `done` events, typed
-auth handshake, cooperative `session/cancel`. ACPX provides one CLI surface
-across 15 Agent Client Protocol (ACP)-compatible coding agents (codex, claude-code, gemini, copilot,
-cursor, droid, qwen, etc).
+`plugin-agent-orchestrator` runs agents inside pseudo-terminals and recovers structure from terminal bytes: ANSI stripping, prompt regex dismissal, stall classifiers, key sends, and PTY state capture.
 
-This plugin is a sibling-not-replacement: deploys alongside
-`plugin-agent-orchestrator`, exposes the same action names so users can switch
-transports by swapping the plugin import.
+Agent Client Protocol gives us the structure directly:
 
-## Goals
+- typed `session/update` events
+- message chunks without screen-buffer reads
+- tool-call lifecycle updates without regex parsing
+- auth and blocked states as protocol events
+- cooperative `session/cancel`
+- `session/load` recovery semantics
 
-- Drop-in action surface compatible with `plugin-agent-orchestrator`
-- ACPX subprocess transport (NDJSON streaming, no pty)
-- Configurable cli binary (`ELIZA_ACP_CLI=acpx`, override possible)
-- Persistent named sessions (eliza-runtime-table-backed)
-- Cooperative cancel + crash reconnect
-- 80%+ unit test coverage
-- Parity smoke vs plugin-agent-orchestrator on at least codex
-- Publishable to npm under `@elizaos`
+`plugin-acpx` exists to expose those ACP semantics to Eliza while preserving the action names existing orchestrator flows already understand.
+
+## Goals for 0.1.x
+
+- Keep action compatibility with `plugin-agent-orchestrator`.
+- Prefer ACP typed events over PTY parsing everywhere possible.
+- Keep subprocesses container-local and explicit, no hidden remote execution.
+- Make codex production-grade first, while preserving adapter selection for claude and gemini.
+- Maintain clean test, build, and Biome receipts before npm release.
 
 ## Non-goals
 
-- Replace plugin-agent-orchestrator (sibling, not replacement)
-- Git workspace provisioning (PROVISION_WORKSPACE / FINALIZE_WORKSPACE)
-- Frontend xterm view
-- Non-codex agent support in v0.1.0 (codex first; claude/gemini in 0.2.0+)
+- Replacing `plugin-agent-orchestrator` outright.
+- Implementing git workspace provisioning actions in this package.
+- Building an xterm frontend view.
+- Publishing to npm from the release-prep branch.
+- Owning authentication for codex, claude, gemini, or other CLIs. Those CLIs must already be installed and authenticated on the host.
 
 ## Action surface
 
-Match `plugin-agent-orchestrator` exactly:
-
 | Action | Purpose |
 |---|---|
-| `SPAWN_AGENT` | Spawn an acpx coding-agent session |
-| `SEND_TO_AGENT` | Send prompt or input to running session |
-| `LIST_AGENTS` | List active sessions |
-| `STOP_AGENT` | Terminate session via session/cancel |
-| `CREATE_TASK` | Async task (spawn + first prompt + return when done) |
-| `CANCEL_TASK` | Cooperative cancel |
+| `SPAWN_AGENT` | Spawn an acpx coding-agent session. |
+| `SEND_TO_AGENT` | Send prompt or input to a running session. |
+| `LIST_AGENTS` | List active and persisted sessions. |
+| `STOP_AGENT` | Stop a session through cooperative cancel / close handling. |
+| `CREATE_TASK` | Spawn, prompt, await completion, and return a task result. |
+| `CANCEL_TASK` | Cancel one in-flight task or all sessions. |
 
 ## Provider
 
-`availableAgents` provider exposes which Agent Client Protocol (ACP)-compatible agents are installed.
+`availableAgentsProvider` exposes installed/auth-status and active-session information to runtime state so the model can pick the right coding agent.
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────┐
 │ Eliza runtime           │
-│  ├─ actions (SPAWN, ..) │
-│  └─ provider (available)│
+│  ├─ actions             │
+│  ├─ provider            │
+│  └─ service registry    │
 └──────────┬──────────────┘
            │
 ┌──────────v──────────────┐
 │ AcpxSubprocessService   │
-│  - spawn `acpx` proc    │
+│  - spawn acpx process   │
 │  - parse NDJSON stream  │
 │  - emit typed events    │
-│  - cancel via session/  │
+│  - persist sessions     │
+│  - cancel / reconnect   │
 └──────────┬──────────────┘
            │
 ┌──────────v──────────────┐
-│ acpx (cli subprocess)   │
-│  --format json          │
+│ acpx CLI subprocess     │
 │  codex / claude / etc   │
+│  Agent Client Protocol  │
 └─────────────────────────┘
 ```
 
-## Reference materials
+## Production receipt
 
-In `.research/`:
-- `plugin-agent-orchestrator-src/`, full source of the PTY plugin we're paralleling
-- `plugin-agent-orchestrator-package.json`, its deps
-- `plugin-agent-orchestrator-README.md`, its surface
-- `acpx-docs/README.md`, acpx README
-- `acpx-docs/docs_CLI.md`, full acpx CLI reference
-- `acpx-docs/skills_acpx_SKILL.md`, skill reference
-- `nyx-spawn-codex/spawn_codex.js`, example of how nyx wraps plugin-agent-orchestrator's CREATE_TASK today
+On 2026-05-06, Nyx used this plugin path to run three parallel acpx-spawned codex subagents. Each completed a real Cloudflare Worker deployment:
+
+- `nebula-callsign-forge-demo`
+- `embermark-night-signal`
+- `aurora-pocket`
+
+That receipt validates parallel spawn, streaming, task completion, and deployment workflow behavior in production-like use.
 
 ## Layout
 
-```
+```text
 src/
-  index.ts              # plugin export
+  index.ts
   actions/
-    spawn-agent.ts
-    send-to-agent.ts
-    list-agents.ts
-    stop-agent.ts
-    create-task.ts
-    cancel-task.ts
   providers/
-    available-agents.ts
   services/
-    acpx-subprocess.ts  # core ACPX wrapper
-    session-store.ts    # persistent session state
-    types.ts            # acpx event types
   __tests__/
-    *.test.ts
+  test-utils/
 docs/
-  ACPX_REFERENCE.md     # W2 output
-  PARITY_SPEC.md        # W3 output
-PROJECT.md              # this file
+  ACPX_REFERENCE.md
+  PARITY_SPEC.md
+tests/e2e/
+  acp-codex-smoke.mjs
 ```
 
-## Status
+## Release checks
 
-🚧 Bootstrapping, wave A in progress.
+Required before publishing:
+
+```bash
+bun test
+bun run build
+bunx @biomejs/biome check .
+```
 
 ## License
 
